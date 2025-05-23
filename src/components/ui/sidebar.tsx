@@ -1,10 +1,12 @@
+/** @format */
 
 "use client"
 
 import * as React from "react"
-import { Slot } from "@radix-ui/react-slot" // Added import
+import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
-import { PanelLeft } from "lucide-react"
+import { PanelLeft, Menu as MenuIcon, Loader2 } from "lucide-react" // Added Loader2
+import Link from "next/link" 
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -261,50 +263,29 @@ const Sidebar = React.forwardRef<
 Sidebar.displayName = "Sidebar"
 
 const SidebarTrigger = React.forwardRef<
-  HTMLButtonElement,
+  React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
->(({ className, onClick, asChild = false, children, variant, size, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar();
-
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    onClick?.(event);
-    toggleSidebar();
-  };
-
-  if (asChild && React.isValidElement(children)) {
-    return (
-      <Slot
-        ref={ref}
-        data-sidebar="trigger"
-        onClick={handleClick}
-        className={className} // Pass className from SidebarTrigger's direct props
-        // Pass other props like variant, size if they were passed to SidebarTrigger
-        // These are now in `props` if they were not standard Button props destructured earlier.
-        // Or they were destructured `variant`, `size` above.
-        {...(variant && { variant })} // Conditionally spread variant if defined
-        {...(size && { size })}       // Conditionally spread size if defined
-        {...props} // Remaining props from SidebarTrigger
-      >
-        {children}
-      </Slot>
-    );
-  }
+>(({ className, onClick, ...props }, ref) => {
+  const { toggleSidebar } = useSidebar()
 
   return (
     <Button
       ref={ref}
       data-sidebar="trigger"
-      variant={variant || "ghost"}
-      size={size || "icon"}
-      className={cn("h-7 w-7", className)}
-      onClick={handleClick}
+      variant="ghost"
+      size="icon"
+      className={cn("h-10 w-10", className)} // Adjusted size for consistency
+      onClick={(event) => {
+        onClick?.(event)
+        toggleSidebar()
+      }}
       {...props}
     >
-      <PanelLeft />
-      <span className="sr-only">Toggle Sidebar</span>
+      <MenuIcon /> 
+      <span className="sr-only">Alternar menú</span>
     </Button>
-  );
-});
+  )
+})
 SidebarTrigger.displayName = "SidebarTrigger"
 
 const SidebarRail = React.forwardRef<
@@ -473,8 +454,8 @@ SidebarGroupLabel.displayName = "SidebarGroupLabel"
 
 const SidebarGroupAction = React.forwardRef<
   HTMLButtonElement,
-  React.ComponentProps<"button"> & { asChild?: boolean }
->(({ className, asChild = false, ...props }, ref) => {
+  React.ComponentProps<"button"> & { asChild?: boolean; showOnHover?: boolean }
+>(({ className, asChild = false, showOnHover = false, ...props }, ref) => {
   const Comp = asChild ? Slot : "button"
 
   return (
@@ -486,6 +467,8 @@ const SidebarGroupAction = React.forwardRef<
         // Increases the hit area of the button on mobile.
         "after:absolute after:-inset-2 after:md:hidden",
         "group-data-[collapsible=icon]:hidden",
+        showOnHover &&
+          "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0",
         className
       )}
       {...props}
@@ -555,13 +538,20 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
+type SidebarMenuButtonProps = (
+  | (React.ButtonHTMLAttributes<HTMLButtonElement> & { href?: never })
+  | (Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
+      href: string
+    })
+) & {
+  asChild?: boolean
+  isActive?: boolean
+  tooltip?: string | React.ComponentProps<typeof TooltipContent>
+} & VariantProps<typeof sidebarMenuButtonVariants>
+
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentProps<"button"> & {
-    asChild?: boolean
-    isActive?: boolean
-    tooltip?: string | React.ComponentProps<typeof TooltipContent>
-  } & VariantProps<typeof sidebarMenuButtonVariants>
+  HTMLButtonElement | HTMLAnchorElement,
+  SidebarMenuButtonProps
 >(
   (
     {
@@ -570,49 +560,75 @@ const SidebarMenuButton = React.forwardRef<
       variant = "default",
       size = "default",
       tooltip,
+      href,
       className,
+      children, 
+      onClick: propOnClick, // Capture the onClick from props
       ...props
     },
     ref
   ) => {
-    const Comp = asChild ? Slot : "button"
+    const Comp = asChild ? Slot : href ? Link : "button" as "a" | "button"
     const { isMobile, state } = useSidebar()
+    const [isClicked, setIsClicked] = React.useState(false);
 
-    const button = (
+    // Extract icon and text from children
+    const iconChild = React.Children.toArray(children)[0];
+    const textChild = React.Children.toArray(children)[1];
+
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
+      if (!isActive) { // Only show loader if not already active
+        setIsClicked(true);
+        setTimeout(() => {
+          setIsClicked(false);
+        }, 1500); // Revert after 1.5 seconds
+      }
+      propOnClick?.(event); // Call original onClick if it exists
+    };
+    
+    const effectiveChildren = isClicked ? (
+      <>
+        <Loader2 className={cn("h-4 w-4 animate-spin", (iconChild as React.ReactElement)?.props?.className)} />
+        {textChild}
+      </>
+    ) : (
+      children
+    );
+
+    const buttonContent = (
       <Comp
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+        onClick={handleClick}
+        {...(Comp === Link || Comp === "a" ? { href: href ?? "" } : {})}
         {...props}
-      />
+      >
+        {effectiveChildren} 
+      </Comp>
     )
 
-    if (!tooltip) {
-      return button
+    if (tooltip && !isMobile && state === 'collapsed') {
+      const tooltipContentProps = typeof tooltip === 'string' ? { children: tooltip } : tooltip;
+       return (
+         <Tooltip>
+           <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
+           <TooltipContent
+             side="right"
+             align="center"
+             {...tooltipContentProps}
+           />
+         </Tooltip>
+       );
     }
 
-    if (typeof tooltip === "string") {
-      tooltip = {
-        children: tooltip,
-      }
-    }
-
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent
-          side="right"
-          align="center"
-          hidden={state !== "collapsed" || isMobile}
-          {...tooltip}
-        />
-      </Tooltip>
-    )
+    return buttonContent;
   }
 )
 SidebarMenuButton.displayName = "SidebarMenuButton"
+
 
 const SidebarMenuAction = React.forwardRef<
   HTMLButtonElement,
@@ -629,7 +645,6 @@ const SidebarMenuAction = React.forwardRef<
       data-sidebar="menu-action"
       className={cn(
         "absolute right-1 top-1.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 peer-hover/menu-button:text-sidebar-accent-foreground [&>svg]:size-4 [&>svg]:shrink-0",
-        // Increases the hit area of the button on mobile.
         "after:absolute after:-inset-2 after:md:hidden",
         "peer-data-[size=sm]/menu-button:top-1",
         "peer-data-[size=default]/menu-button:top-1.5",
@@ -672,7 +687,6 @@ const SidebarMenuSkeleton = React.forwardRef<
     showIcon?: boolean
   }
 >(({ className, showIcon = false, ...props }, ref) => {
-  // Random width between 50 to 90%.
   const width = React.useMemo(() => {
     return `${Math.floor(Math.random() * 40) + 50}%`
   }, [])
@@ -783,5 +797,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    

@@ -2,88 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  
+}
+
 @layer base {
   :root {
-    --background: 212 60% 96%; /* #F0F5F9 Light, desaturated blue */
-    --foreground: 210 25% 25%; /* Dark blue-gray */
-
-    --muted: 210 40% 93%;
-    --muted-foreground: 210 30% 55%;
-
+    --background: 230 60% 98%;  /* Light gray */
+    --foreground: 230 60% 20%;
+    --muted: 230 60% 90%;
+    --muted-foreground: 230 60% 50%;
     --popover: 0 0% 100%;
-    --popover-foreground: 210 25% 25%;
-
+    --popover-foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
-    --card-foreground: 210 25% 25%;
-
-    --border: 210 30% 88%;
-    --input: 210 30% 88%;
-
-    --primary: 210 50% 60%; /* #6699CC Calming blue */
-    --primary-foreground: 0 0% 100%; /* White */
-
-    --secondary: 210 40% 90%;
-    --secondary-foreground: 210 30% 40%;
-
-    --accent: 270 50% 60%; /* #9966CC Muted purple */
-    --accent-foreground: 0 0% 100%; /* White */
-
+    --card-foreground: 222.2 47.4% 11.2%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --primary: 235 100% 40%;  /* Blue */
+    --primary-foreground: 210 20% 98%;
+    --secondary: 210 40% 99.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --accent: 40 100% 50%;  /* Orange */
+    --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --ring: 210 50% 60%; /* Primary color for rings */
+    --destructive-foreground: 210 20% 98%;
+    --ring: 222.2 47.4% 11.2%;
     --radius: 0.5rem;
-
-    /* Sidebar specific theme variables */
-    --sidebar-background: 220 30% 15%; /* Darker blue for sidebar */
-    --sidebar-foreground: 210 40% 95%; /* Light text for sidebar */
-    --sidebar-primary: 210 50% 70%; /* Slightly lighter primary for sidebar highlights */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 25%; /* Hover/active background for sidebar items */
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 30% 20%;
-    --sidebar-ring: 210 50% 70%;
+    --sidebar-background: 20 14.3% 95.1%;
+    --sidebar-foreground: 20 7.1% 19.8%;
+    --sidebar-primary: 222.2 47.4% 11.2%;
+    --sidebar-primary-foreground: 210 20% 98%;
+    --sidebar-accent: 42.7 92.1% 58.3%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 222.2 47.4% 11.2%;
   }
-
   .dark {
-    /* Define dark theme variables if needed, for now focusing on light theme */
-    --background: 210 25% 15%;
-    --foreground: 212 60% 90%;
-
-    --muted: 210 25% 25%;
-    --muted-foreground: 210 30% 70%;
-
-    --popover: 210 25% 10%;
-    --popover-foreground: 212 60% 90%;
-
-    --card: 210 25% 12%;
-    --card-foreground: 212 60% 90%;
-
-    --border: 210 20% 30%;
-    --input: 210 20% 30%;
-
-    --primary: 210 50% 60%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 30% 25%;
-    --secondary-foreground: 212 60% 90%;
-
-    --accent: 270 50% 60%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    --ring: 210 50% 60%;
-    
-    --sidebar-background: 220 30% 10%;
-    --sidebar-foreground: 210 40% 85%;
-    --sidebar-primary: 210 50% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 20%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 30% 15%;
-    --sidebar-ring: 210 50% 65%;
+    --background: 230 30% 12%;  /* Dark gray */
+    --foreground: 230 60% 80%;
+    --muted: 220 4% 20%;
+    --muted-foreground: 220 3% 50%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --border: 214.3 31.8% 30%;
+    --input: 214.3 31.8% 30%;
+    --primary: 235 100% 40%; /* Blue */
+    --primary-foreground: 222.2 47.4% 1.2%;
+    --secondary: 222.2 47.4% 11.2%;
+    --secondary-foreground: 210 40% 98%;
+    --accent: 40 100% 50%; /* Orange */
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+    --ring: 217.2 32.6% 27.5%;
+    --radius: 0.5rem;
+     --sidebar-background: 20 14.3% 15.1%;
+    --sidebar-foreground: 20 7.1% 59.8%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-primary-foreground: 222.2 47.4% 1.2%;
+    --sidebar-accent: 42.7 92.1% 58.3%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 216 34% 17%;
+    --sidebar-ring: 217.2 32.6% 27.5%;
   }
 }
 
@@ -93,6 +76,128 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Removed font-family: Arial, Helvetica, sans-serif; to use Next/font */
   }
 }
+
+/* Add line-clamp utility */
+@layer utilities {
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
+/* Custom Calendar Day Modifier Styles */
+@layer components {
+  /* Verde : Días disponibles ("available") */
+  .rdp-day_available {
+    background-color: #4ade80 !important; /* Tailwind green-400 */
+    color: white !important;
+    border-radius: var(--radius);
+  }
+  .rdp-day_available:hover:not([disabled]):not(.rdp-day_selected) {
+    background-color: #3cb170 !important; /* Darker green for hover */
+  }
+
+  /* Naranja : Días con medio cupo ("partial") */
+  .rdp-day_partial {
+    background-color: #fbbf24 !important; /* Tailwind amber-400 */
+    color: hsl(var(--card-foreground)) !important; /* Use card-foreground for better contrast on amber */
+    border-radius: var(--radius);
+  }
+  .rdp-day_partial:hover:not([disabled]):not(.rdp-day_selected) {
+    background-color: #f59e0b !important; /* Darker amber for hover */
+  }
+
+  /* Rojo : Días ocupados ("occupied") */
+  .rdp-day_occupied {
+    background-color: #f87171 !important; /* Tailwind red-400 */
+    color: white !important;
+    border-radius: var(--radius);
+  }
+   .rdp-day_occupied:hover:not([disabled]):not(.rdp-day_selected) {
+    background-color: #ef4444 !important; /* Tailwind red-500 for hover */
+  }
+
+  /* Gris : Días no disponibles, descansos, o estado 'unavailable' */
+  .rdp-button[disabled]:not(.rdp-day_selected):not(.rdp-day_available):not(.rdp-day_partial):not(.rdp-day_occupied),
+  .rdp-day_outside[disabled]:not(.rdp-day_selected):not(.rdp-day_available):not(.rdp-day_partial):not(.rdp-day_occupied) {
+    background-color: #e5e7eb !important; /* Tailwind gray-200 */
+    color: #9ca9af !important; /* Tailwind gray-400 for better visibility */
+    opacity: 0.6 !important; /* Slightly more opaque */
+    border-radius: var(--radius);
+    cursor: not-allowed !important;
+  }
+  
+  /* Ensure selected style (primary blue) overrides other status colors */
+  .rdp-day_selected,
+  .rdp-day_selected.rdp-day_available, /* Selected and available */
+  .rdp-day_selected.rdp-day_partial,  /* Selected and partial */
+  .rdp-day_selected.rdp-day_occupied { /* Selected and occupied (though occupied should be disabled) */
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    opacity: 1 !important; 
+  }
+  .rdp-day_selected:hover:not([disabled]) {
+    background-color: hsl(var(--primary)) !important; 
+    opacity: 0.9 !important;
+  }
+
+   /* More specific 'today' styling that doesn't get overridden by disabled state, unless also selected or status-colored */
+  .rdp-day_today:not([disabled]):not(.rdp-day_selected):not(.rdp-day_available):not(.rdp-day_partial):not(.rdp-day_occupied) {
+    font-weight: bold;
+    color: hsl(var(--accent)) !important; /* Use accent color for today's date text */
+    background-color: transparent !important; /* Ensure no background if only 'today' and not other status */
+  }
+  /* If today is also disabled (e.g. past) and not specifically colored by status */
+  .rdp-day_today[disabled]:not(.rdp-day_selected):not(.rdp-day_available):not(.rdp-day_partial):not(.rdp-day_occupied) {
+    font-weight: normal; /* Reset font weight if disabled */
+    /* It will inherit the gray background/text from the general disabled rule */
+  }
+}
+
+/* Hide reCAPTCHA badge */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
+
+
+/*compatible mobil y web */
+/* Móvil: por defecto (menos de 640px) */
+.relative.overflow-hidden.max-h-\[85vh\] {
+  width: 310px; /* Default width for mobile */
+}
+
+/*  Tablet (≥ 640px) */
+@media (min-width: 640px) {
+  .relative.overflow-hidden.max-h-\[85vh\] {
+    width: 400px; /* Width for tablets and larger */
+    height: auto;
+  }
+}
+/* Removed problematic rule: 
+div#radix-«rn» {
+  width: 460px;
+}
+*/

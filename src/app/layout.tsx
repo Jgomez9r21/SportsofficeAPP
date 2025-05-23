@@ -1,12 +1,24 @@
-import type { Metadata } from 'next';
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
+
+import type {Metadata} from 'next';
+import {Geist, Geist_Mono} from 'next/font/google';
 import './globals.css';
-import AppShell from '@/components/layout/AppShell';
+import { Body } from '@/layout/app';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { AuthProvider } from '@/context/AuthContext';
+
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+});
+
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+});
 
 export const metadata: Metadata = {
-  title: 'SpaceFlow',
-  description: 'Book sports fields and workspaces effortlessly.',
+  title: 'Sportoffice',
+  description: 'Conéctate con proveedores de servicios locales y reserva servicios con facilidad.',
 };
 
 export default function RootLayout({
@@ -15,10 +27,6 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`}>
-        <AppShell>{children}</AppShell>
-      </body>
-    </html>
+    <html lang="es"><body className={`${geistSans.variable} ${geistMono.variable} antialiased`}><AuthProvider><SidebarProvider><Body>{children}</Body></SidebarProvider></AuthProvider></body></html>
   );
 }
