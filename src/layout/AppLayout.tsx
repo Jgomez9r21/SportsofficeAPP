@@ -31,7 +31,7 @@ import {
 } from "../components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Toaster } from "@/components/ui/toaster";
-import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Menu, LogIn, LogOut, Building, Waves, LayoutGrid, FileText, ShieldCheck, X as XIcon, AlertTriangle, WifiOff } from "lucide-react"; // Added LogIn, LogOut, AlertTriangle, WifiOff
+import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Menu, LogIn, Building, Waves, LayoutGrid, FileText, ShieldCheck, X as XIcon, AlertTriangle, PackageSearch } from "lucide-react";
 
 import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/context/AuthContext';
 
 const navegacion = [
-  { title: "Servicios Job", href: "/", icon: Home, tooltip: "Explora servicios profesionales" },
+  { title: "Servicios Job", href: "/", icon: PackageSearch, tooltip: "Explora servicios profesionales" },
   { title: "Espacios Deportivos", href: "/sports-facilities", icon: Building, tooltip: "Encuentra instalaciones deportivas" },
   { title: "Publicar", href: "/post-job", icon: UploadCloud, tooltip: "Publica tus servicios o espacios" },
   { title: "Mis Reservas", href: "/book-service", icon: CalendarDays, tooltip: "Gestiona tus reservas" },
@@ -55,15 +55,30 @@ export default function AppLayout({
 }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const authContext = useAuth();
+  const authContext = useAuth(); // Get the whole context
+
+  // If context is not yet available (e.g., during initial SSR or if AuthProvider hasn't mounted)
+  // show a global loading state or a minimal layout.
+  if (!authContext) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+        <svg className="animate-spin h-10 w-10 text-primary mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p className="text-muted-foreground">Cargando aplicación...</p>
+        <Toaster />
+      </div>
+    );
+  }
+
   const {
     user,
     isLoggedIn,
-    handleLogout,
-    isLoading,
-    firebaseConfigError,
-    openLoginDialog, // Assuming we might still use dialogs or for smooth transition
+    isLoading, // Use isLoading from context
+    firebaseConfigError, // Use firebaseConfigError from context
   } = authContext;
+
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
 
   const handleMobileSheetOpenChange = (open: boolean) => {
@@ -78,21 +93,13 @@ export default function AppLayout({
   if (firebaseConfigError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-center">
-        <AlertTriangle className="h-16 w-16 text-destructive mb-6" />
-        <h1 className="text-2xl font-bold text-destructive mb-3">Error Crítico de Configuración</h1>
-        <p className="text-lg text-foreground mb-1">No se pudo inicializar Firebase.</p>
-        <p className="text-muted-foreground mb-6 max-w-md">
-          Una o más variables de entorno de Firebase (como `NEXT_PUBLIC_FIREBASE_API_KEY` o `NEXT_PUBLIC_FIREBASE_PROJECT_ID`) faltan o son incorrectas.
+        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
+        <h1 className="text-2xl font-bold text-destructive mb-2">Error Crítico de Configuración</h1>
+        <p className="text-foreground mb-1">La aplicación no puede conectarse a los servicios de Firebase.</p>
+        <p className="text-muted-foreground mb-4 max-w-md">
+          Por favor, asegúrate de que las variables de entorno de Firebase (<code>NEXT_PUBLIC_FIREBASE_API_KEY</code>, <code>NEXT_PUBLIC_FIREBASE_PROJECT_ID</code>, etc.) estén correctamente configuradas en tu archivo <code>.env.local</code> y que hayas reiniciado el servidor de desarrollo.
         </p>
-        <div className="bg-muted p-4 rounded-md text-left text-sm max-w-lg mx-auto">
-          <p className="font-semibold mb-2">Por favor, verifica lo siguiente:</p>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li>Que exista un archivo `.env.local` en la raíz de tu proyecto.</li>
-            <li>Que todas las variables `NEXT_PUBLIC_FIREBASE_...` estén correctamente definidas en `.env.local` con los valores de tu proyecto Firebase.</li>
-            <li>Que hayas **reiniciado tu servidor de desarrollo** después de crear o modificar el archivo `.env.local`.</li>
-          </ul>
-        </div>
-        <Button onClick={() => window.location.reload()} className="mt-8">
+        <Button onClick={() => window.location.reload()}>
           Intentar Recargar
         </Button>
         <Toaster />
@@ -101,20 +108,17 @@ export default function AppLayout({
   }
 
   if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
-          <div className="flex flex-col items-center">
-            <Image src={logoImage} alt="Sportoffice Logo" width={60} height={60} priority className="mb-4" data-ai-hint="logo sportoffice loading"/>
-            <div className="flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-              <span className="text-lg font-medium text-muted-foreground">Cargando Sportoffice...</span>
-            </div>
-          </div>
-          <Toaster />
-        </div>
-      );
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+        <svg className="animate-spin h-10 w-10 text-primary mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p className="text-muted-foreground">Cargando...</p>
+        <Toaster />
+      </div>
+    );
   }
-
 
   return (
       <>
@@ -155,31 +159,15 @@ export default function AppLayout({
               </SidebarContent>
               <SidebarFooter className="p-2 border-t flex flex-col gap-2 flex-shrink-0">
                 {isLoggedIn && user ? (
-                    <div className="flex flex-col items-start gap-2 w-full group-data-[collapsible=icon]:items-center">
-                        <Button variant="ghost" onClick={() => router.push('/settings')} className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent/10 p-1 rounded-md overflow-hidden w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:rounded-md">
-                            <Avatar className="h-8 w-8 flex-shrink-0 group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7">
-                            <AvatarImage src={user.avatarUrl || undefined} alt={user.name} data-ai-hint="user avatar placeholder" />
-                            <AvatarFallback>{user.initials}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col text-sm text-left transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:sr-only">
-                            <span className="font-semibold truncate">{user.name}</span>
-                            </div>
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleLogout}
-                            className="w-full text-xs h-8 justify-start text-sidebar-foreground hover:bg-sidebar-accent/20 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
-                         >
-                            <LogOut className="mr-2 h-3.5 w-3.5 group-data-[collapsible=icon]:mr-0" />
-                            <span className="overflow-hidden whitespace-nowrap transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:sr-only">
-                                Cerrar Sesión
-                            </span>
-                             <span className="sr-only group-data-[collapsible!=icon]:hidden">
-                                 Cerrar Sesión
-                             </span>
-                        </Button>
+                  <Button variant="ghost" onClick={() => router.push('/settings')} className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent/10 p-1 rounded-md overflow-hidden w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:rounded-md">
+                    <Avatar className="h-8 w-8 flex-shrink-0 group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7">
+                      <AvatarImage src={user.avatarUrl || undefined} alt={user.name} data-ai-hint="user avatar placeholder" />
+                      <AvatarFallback>{user.initials}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col text-sm text-left transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:sr-only">
+                      <span className="font-semibold truncate">{user.name}</span>
                     </div>
+                  </Button>
                 ) : (
                    <Button
                      asChild
@@ -254,17 +242,12 @@ export default function AppLayout({
                                    </SidebarMenu>
                               </SidebarContent>
                           </ScrollArea>
-                           <SidebarFooter className="p-2 border-t flex-shrink-0 space-y-2">
+                           <SidebarFooter className="p-2 border-t flex-shrink-0">
                                {isLoggedIn && user ? (
-                                    <>
-                                        <Button variant="ghost" onClick={() => { router.push('/settings'); setIsMobileSheetOpen(false); }} className="flex items-center gap-2 p-1 rounded-md w-full justify-start">
-                                            <Avatar className="h-8 w-8"><AvatarImage src={user.avatarUrl || undefined} alt={user.name} data-ai-hint="user avatar small" /><AvatarFallback>{user.initials}</AvatarFallback></Avatar>
-                                            <span className="font-medium truncate">{user.name}</span>
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => {handleLogout(); setIsMobileSheetOpen(false);}} className="w-full text-xs h-9 text-sidebar-foreground hover:bg-sidebar-accent/20">
-                                            <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
-                                        </Button>
-                                    </>
+                                    <Button variant="ghost" onClick={() => { router.push('/settings'); setIsMobileSheetOpen(false); }} className="flex items-center gap-2 p-1 rounded-md w-full justify-start">
+                                        <Avatar className="h-8 w-8"><AvatarImage src={user.avatarUrl || undefined} alt={user.name} data-ai-hint="user avatar small" /><AvatarFallback>{user.initials}</AvatarFallback></Avatar>
+                                        <span className="font-medium truncate">{user.name}</span>
+                                    </Button>
                                 ) : (
                                     <Button
                                       asChild
