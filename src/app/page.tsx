@@ -2,365 +2,481 @@
 "use client";
 
 import type React from 'react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '@/layout/AppLayout';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search, MapPin, Star, Filter, X, Heart, Briefcase, BarChart, Camera, Edit, Music, Lightbulb, UserCircle, Code as CodeIcon, Construction as ConstructionIcon, School2 as School2Icon, Palette as PaletteIcon, HomeIcon as LucideHomeIcon, Shield } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
-import Image from 'next/image';
-import Link from 'next/link';
-import { HOURLY_RATE_CATEGORIES } from '@/lib/config';
-import { cn } from "@/lib/utils";
-import { getServiceListings, type ServiceListing } from '@/services/service-listings';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { FileText, Download, Banknote, Smartphone, Mail, Trash2, Wallet, Send } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from '@/components/ui/badge';
+import { useToast } from "@/hooks/use-toast";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-// Service Categories (from post-job/page.tsx)
-interface ServiceCategory {
-  name: string;
-  icon?: React.ComponentType<{ className?: string }>;
+interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  date: string;
+  serviceTitle: string;
+  amount: number;
+  status: 'Pagada' | 'Pendiente' | 'Pago Rechazado';
 }
-const serviceCategories: ServiceCategory[] = [
-  { name: 'Todos', icon: Briefcase },
-  { name: 'Tecnología', icon: CodeIcon },
-  { name: 'Entrenador Personal', icon: UserCircle },
-  { name: 'Contratista', icon: ConstructionIcon },
-  { name: 'Mantenimiento Hogar', icon: LucideHomeIcon },
-  { name: 'Profesores', icon: School2Icon },
-  { name: 'Diseñadores', icon: PaletteIcon },
-  { name: 'Marketing Digital', icon: BarChart },
-  { name: 'Video & Animación', icon: Camera },
-  { name: 'Redacción & Traducción', icon: Edit },
-  { name: 'Música & Audio', icon: Music },
-  { name: 'Finanzas', icon: BarChart },
-  { name: 'Crecimiento Personal', icon: Lightbulb },
-  { name: 'Seguridad', icon: Shield},
-  { name: 'Fotografía', icon: Camera },
+
+const mockInvoicesData: Invoice[] = [
+  { id: 'inv1', invoiceNumber: 'FACT-00123', date: '2024-08-15', serviceTitle: 'Entrenamiento Fitness Personalizado - Julio', amount: 180000, status: 'Pagada' },
+  { id: 'inv2', invoiceNumber: 'FACT-00124', date: '2025-05-17', serviceTitle: 'Clases Particulares de Matemáticas - Agosto', amount: 120000, status: 'Pendiente' },
+  { id: 'inv3', invoiceNumber: 'FACT-00125', date: '2025-02-01', serviceTitle: 'Desarrollo Web Frontend - Proyecto X', amount: 1500000, status: 'Pagada' },
+  { id: 'inv4', invoiceNumber: 'FACT-00126', date: '2024-09-05', serviceTitle: 'Consultoría SEO - Paquete Básico', amount: 350000, status: 'Pago Rechazado' },
+  { id: 'inv5', invoiceNumber: 'FACT-00127', date: '2025-05-17', serviceTitle: 'Diseño de Logo y Branding', amount: 700000, status: 'Pendiente' },
 ];
 
-// Helper function to match service category with filter category
-const categoryMatchesFilter = (serviceCategory: string, filterCategory: string): boolean => {
-    if (filterCategory === 'Todos') return true;
-    return serviceCategory.toLowerCase() === filterCategory.toLowerCase();
-};
-
-const FiltersContent = ({
-    currentFilterCategory, setCurrentFilterCategory,
-    currentFilterLocation, setCurrentFilterLocation,
-    currentFilterMinRating, setCurrentFilterMinRating,
-    currentFilterMaxRate, setCurrentFilterMaxRate,
-    onApplyFilters,
-}: {
-    currentFilterCategory: string; setCurrentFilterCategory: (cat: string) => void;
-    currentFilterLocation: string; setCurrentFilterLocation: (loc: string) => void;
-    currentFilterMinRating: number; setCurrentFilterMinRating: (rate: number) => void;
-    currentFilterMaxRate: number; setCurrentFilterMaxRate: (rate: number) => void;
-    onApplyFilters: () => void;
-}) => {
-    return (
-     <div className="space-y-6 p-4 h-full flex flex-col">
-         <div className="space-y-2">
-             <Label htmlFor="service-category-select">Categoría del Servicio</Label>
-             <Select value={currentFilterCategory} onValueChange={setCurrentFilterCategory}>
-                 <SelectTrigger id="service-category-select">
-                     <SelectValue placeholder="Selecciona una categor\xeda" />
-                 </SelectTrigger>
-                 <SelectContent>
-                     {serviceCategories.map(category => (
-                         <SelectItem key={category.name} value={category.name}>
-                            {category.icon && <category.icon className="inline-block h-4 w-4 mr-2 text-muted-foreground" />}
-                            {category.name}
-                         </SelectItem>
-                     ))}
-                 </SelectContent>
-             </Select>
-         </div>
-
-         <div className="space-y-2">
-             <Label htmlFor="service-location-input">Ubicación / Modalidad</Label>
-             <div className="relative">
-                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                 <Input
-                     id="service-location-input"
-                     placeholder="Ej: Remoto, Bogotá"
-                     value={currentFilterLocation}
-                     onChange={(e) => setCurrentFilterLocation(e.target.value)}
-                     className="pl-9"
-                 />
-             </div>
-         </div>
-
-         <div className="space-y-2">
-             <Label htmlFor="service-rating-slider">Valoración Mínima</Label>
-              <div className="flex items-center gap-2">
-                 <Star className="h-5 w-5 text-yellow-400 fill-yellow-400 flex-shrink-0" />
-                 <Slider
-                     id="service-rating-slider"
-                     min={0}
-                     max={5}
-                     step={0.1}
-                     value={[currentFilterMinRating]}
-                     onValueChange={(value) => setCurrentFilterMinRating(value[0])}
-                     className="flex-grow"
-                 />
-                 <span className="text-sm font-medium w-8 text-right">{currentFilterMinRating.toFixed(1)}</span>
-             </div>
-         </div>
-
-         <div className="space-y-2">
-             <Label htmlFor="service-rate-slider">Tarifa Máxima</Label>
-             <div className="flex items-center gap-2">
-                <Slider
-                    id="service-rate-slider"
-                    min={0}
-                    max={200000} // Example max rate
-                    step={5000}
-                    value={[currentFilterMaxRate]}
-                    onValueChange={(value) => setCurrentFilterMaxRate(value[0])}
-                    className="flex-grow"
-                />
-                <span className="text-sm font-medium w-24 text-right">
-                    {currentFilterMaxRate.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 })}
-                </span>
-             </div>
-             <p className="text-xs text-muted-foreground">La tarifa puede ser por hora o por proyecto, según el servicio.</p>
-          </div>
-
-          <div className="mt-auto pt-6 border-t">
-            <SheetClose asChild>
-                <Button className="w-full" onClick={onApplyFilters}>Mostrar Resultados</Button>
-            </SheetClose>
-         </div>
-     </div>
-    );
-};
-
-const ServiceListingsPageContent = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-  // const [favoritedItems, setFavoritedItems] = useState<Set<string>>(new Set()); // Favorite state can be added back if needed
-  const [serviceListings, setServiceListings] = useState<ServiceListing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { openLoginDialog, isLoggedIn } = useAuth();
+interface PayoutAccountBase {
+  id: string;
+  accountHolderName?: string;
+  isPrimary?: boolean;
+}
+interface ColombianPayoutMethod extends PayoutAccountBase {
+  type: 'bancolombia' | 'nequi';
+  accountNumber: string;
+}
+interface PayPalPayoutMethod extends PayoutAccountBase {
+  type: 'paypal';
+  email: string;
+}
+type UserPayoutMethod = ColombianPayoutMethod | PayPalPayoutMethod;
 
 
-  const [currentFilterCategory, setCurrentFilterCategory] = useState('Todos');
-  const [currentFilterLocation, setCurrentFilterLocation] = useState('');
-  const [currentFilterMinRating, setCurrentFilterMinRating] = useState(0);
-  const [currentFilterMaxRate, setCurrentFilterMaxRate] = useState(200000);
+const STORED_INVOICES_KEY = 'storedInvoices';
+const STORED_PAYOUT_METHODS_KEY = 'storedUserPayoutMethods';
+const MOCK_AVAILABLE_BALANCE = 500000; 
 
-  const [appliedFilters, setAppliedFilters] = useState({
-    category: 'Todos',
-    location: '',
-    rating: 0,
-    rate: 200000,
-  });
-  
+
+const BillingContent = () => {
+  const { user, isLoggedIn, isLoading, openLoginDialog } = useAuth();
+  const { toast } = useToast();
+
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isInvoiceDataLoading, setIsInvoiceDataLoading] = useState(true);
+
+  const [payoutMethodType, setPayoutMethodType] = useState<'bancolombia' | 'nequi' | 'paypal' | ''>('');
+  const [payoutAccountNumber, setPayoutAccountNumber] = useState('');
+  const [payoutAccountHolderName, setPayoutAccountHolderName] = useState('');
+  const [payoutPaypalEmail, setPayoutPaypalEmail] = useState('');
+  const [savedPayoutMethods, setSavedPayoutMethods] = useState<UserPayoutMethod[]>([]);
+
+  const [availableBalance, setAvailableBalance] = useState(MOCK_AVAILABLE_BALANCE);
+  const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState<string>('');
+  const [selectedPayoutMethodForWithdrawal, setSelectedPayoutMethodForWithdrawal] = useState<string | undefined>(undefined);
+
+
   useEffect(() => {
-    const fetchListings = async () => {
-      setIsLoading(true);
+    if (isLoggedIn) {
+      setIsInvoiceDataLoading(true);
       try {
-        const listings = await getServiceListings();
-        setServiceListings(listings);
-      } catch (error) {
-        console.error("Error fetching service listings:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchListings();
-  }, []);
+        const storedInvoicesRaw = localStorage.getItem(STORED_INVOICES_KEY);
+        if (storedInvoicesRaw) {
+          const stored = JSON.parse(storedInvoicesRaw) as Invoice[];
+          setInvoices(prev => [...stored, ...mockInvoicesData.filter(mock => !stored.some(s => s.id === mock.id))]);
+        } else {
+          setInvoices(mockInvoicesData);
+        }
+      } catch (error) { console.error("Error loading invoices:", error); setInvoices(mockInvoicesData); }
+
+      try {
+        const storedPayoutsRaw = localStorage.getItem(STORED_PAYOUT_METHODS_KEY);
+        if (storedPayoutsRaw) setSavedPayoutMethods(JSON.parse(storedPayoutsRaw) as UserPayoutMethod[]);
+      } catch (error) { console.error("Error loading payout methods:", error); }
+      
+      setIsInvoiceDataLoading(false);
+    } else {
+      setIsInvoiceDataLoading(false);
+      setInvoices([]);
+      setSavedPayoutMethods([]);
+    }
+  }, [isLoggedIn, user]);
 
 
   useEffect(() => {
-    setCurrentFilterCategory(appliedFilters.category);
-    setCurrentFilterLocation(appliedFilters.location);
-    setCurrentFilterMinRating(appliedFilters.rating);
-    setCurrentFilterMaxRate(appliedFilters.rate);
-  }, [appliedFilters]);
+    if (isLoggedIn) {
+      localStorage.setItem(STORED_PAYOUT_METHODS_KEY, JSON.stringify(savedPayoutMethods));
+    }
+  }, [savedPayoutMethods, isLoggedIn]);
 
-  const handleApplyFilters = useCallback(() => {
-    setAppliedFilters({
-      category: currentFilterCategory,
-      location: currentFilterLocation,
-      rating: currentFilterMinRating,
-      rate: currentFilterMaxRate,
+
+  const handleDownloadPdf = (invoiceNumber: string) => {
+    console.log(`Simulando descarga de PDF para factura N° ${invoiceNumber}`);
+    toast({ title: "Descarga de PDF (Simulación)", description: `Aquí se iniciaría la descarga del PDF para la factura N° ${invoiceNumber}.` });
+  };
+
+  const getStatusBadgeVariant = (status: Invoice['status']): 'default' | 'secondary' | 'outline' | 'destructive' => {
+    if (status === 'Pagada') return 'default';
+    if (status === 'Pendiente') return 'secondary';
+    if (status === 'Pago Rechazado') return 'destructive';
+    return 'outline';
+  };
+  
+  const handleSavePayoutMethod = () => {
+    if (!payoutMethodType) {
+      toast({ title: 'Información Incompleta', description: 'Selecciona un tipo de cuenta para desembolso.', variant: 'destructive' });
+      return;
+    }
+
+    let newMethod: UserPayoutMethod | null = null;
+    const baseId = `payout-${Date.now()}`;
+
+    if (payoutMethodType === 'bancolombia' || payoutMethodType === 'nequi') {
+      if (!payoutAccountNumber) {
+        toast({ title: 'Información Incompleta', description: 'Ingresa el número de cuenta/celular.', variant: 'destructive' });
+        return;
+      }
+      newMethod = {
+        id: baseId,
+        type: payoutMethodType,
+        accountNumber: payoutAccountNumber,
+        accountHolderName: payoutAccountHolderName || user?.name,
+      };
+    } else if (payoutMethodType === 'paypal') {
+      if (!payoutPaypalEmail) {
+        toast({ title: 'Información Incompleta', description: 'Ingresa tu correo de PayPal.', variant: 'destructive' });
+        return;
+      }
+      newMethod = {
+        id: baseId,
+        type: 'paypal',
+        email: payoutPaypalEmail,
+        accountHolderName: payoutAccountHolderName || user?.name,
+      };
+    }
+
+    if (newMethod) {
+      setSavedPayoutMethods(prev => [...prev, newMethod!]);
+      toast({ title: 'Método de Desembolso Guardado (Simulación)', description: `Tu método de desembolso (${payoutMethodType}) ha sido guardado.` });
+      setPayoutMethodType(''); setPayoutAccountNumber(''); setPayoutAccountHolderName(''); setPayoutPaypalEmail('');
+    }
+  };
+
+  const handleDeletePayoutMethod = (id: string) => {
+    setSavedPayoutMethods(prev => prev.filter(pm => pm.id !== id));
+    toast({ title: 'Método de Desembolso Eliminado (Simulación)'});
+  };
+
+  const handleWithdraw = () => {
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: 'Monto Inválido', description: 'Ingresa un monto válido para retirar.', variant: 'destructive' });
+      return;
+    }
+    if (amount > availableBalance) {
+      toast({ title: 'Saldo Insuficiente', description: 'No puedes retirar más de tu saldo disponible.', variant: 'destructive' });
+      return;
+    }
+    if (!selectedPayoutMethodForWithdrawal) {
+      toast({ title: 'Método de Desembolso No Seleccionado', description: 'Selecciona a dónde enviar el dinero.', variant: 'destructive' });
+      return;
+    }
+    const selectedMethodDetails = savedPayoutMethods.find(pm => pm.id === selectedPayoutMethodForWithdrawal);
+
+    console.log(`Simulación: Retirando ${amount} COP a ${selectedMethodDetails?.type} (${selectedMethodDetails?.type === 'paypal' ? (selectedMethodDetails as PayPalPayoutMethod).email : (selectedMethodDetails as ColombianPayoutMethod).accountNumber})`);
+    toast({
+      title: 'Retiro Solicitado (Simulación)',
+      description: `Se han solicitado ${amount.toLocaleString('es-CO', {style: 'currency', currency: 'COP'})} para desembolso a tu cuenta ${selectedMethodDetails?.type}.`,
     });
-    setIsSheetOpen(false);
-  }, [currentFilterCategory, currentFilterLocation, currentFilterMinRating, currentFilterMaxRate]);
+    setAvailableBalance(prev => prev - amount);
+    setIsWithdrawDialogOpen(false);
+    setWithdrawAmount('');
+    setSelectedPayoutMethodForWithdrawal(undefined);
+  };
 
 
-  const filteredServices = serviceListings.filter(service => {
-    const matchesCategory = appliedFilters.category === 'Todos' || categoryMatchesFilter(service.category, appliedFilters.category);
-    const matchesLocation = appliedFilters.location === '' || service.location.toLowerCase().includes(appliedFilters.location.toLowerCase());
-    const matchesRating = (service.rating || 0) >= appliedFilters.rating;
-    const matchesRate = service.rate <= appliedFilters.rate;
-    const matchesSearch = searchQuery === '' ||
-                          service.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          service.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (service.description && service.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (service.professionalName && service.professionalName.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCategory && matchesLocation && matchesRating && matchesRate && matchesSearch;
-  });
+  if (isLoading) {
+    return <div className="flex flex-col flex-grow items-center justify-center p-4"><p>Cargando facturación...</p></div>;
+  }
 
-  // const toggleFavorite = (itemId: string) => { // Favorite functionality can be added back if needed
-  //    if (!isLoggedIn) {
-  //       openLoginDialog();
-  //       return;
-  //     }
-  //   setFavoritedItems(prevFavorites => {
-  //     const newFavorites = new Set(prevFavorites);
-  //     if (newFavorites.has(itemId)) {
-  //       newFavorites.delete(itemId);
-  //     } else {
-  //       newFavorites.add(itemId);
-  //     }
-  //     console.log("Favorited items (simulated):", newFavorites);
-  //     return newFavorites;
-  //   });
-  // };
+  if (!isLoggedIn) {
+    return (
+      <div className="flex flex-col flex-grow items-center justify-center p-4">
+        <div className="p-6 md:p-8 flex flex-col items-center text-center border rounded-lg bg-card shadow-lg max-w-md">
+          <FileText className="h-16 w-16 text-muted-foreground/50 mb-6" />
+          <h2 className="text-xl font-medium mb-2 text-foreground">Acceso Restringido a Facturación</h2>
+          <p className="text-muted-foreground mb-6 max-w-sm">Debes iniciar sesión o crear una cuenta para gestionar tu facturación.</p>
+          <Button onClick={openLoginDialog}>Iniciar Sesión / Crear Cuenta</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const isProfessional = user?.profileType === 'profesional' || user?.profileType === 'propietario_espacio';
 
   return (
-    <div className="flex flex-col h-full">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background px-4 sm:px-6 flex-shrink-0">
-            <h1 className="text-lg font-semibold mr-auto whitespace-nowrap">Servicios Profesionales</h1>
+    <div className="p-4 md:p-6 lg:p-8 space-y-8">
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl md:text-3xl font-semibold flex items-center">
+            <FileText className="mr-3 h-7 w-7 text-primary" /> Historial de Facturas
+          </h1>
+        </div>
+        <p className="text-muted-foreground mb-6">
+          Consulta todas tus facturas generadas. {user && <span className="block text-sm mt-1">Email de facturación: {user.email}</span>}
+        </p>
+        <Card>
+          <CardHeader><CardTitle>Tus Facturas</CardTitle><CardDescription>Listado de todas tus facturas.</CardDescription></CardHeader>
+          <CardContent>
+            {isInvoiceDataLoading ? <div className="flex justify-center items-center h-40"><p>Cargando facturas...</p></div>
+              : invoices.length === 0 ? (
+                <div className="text-center text-muted-foreground py-10 border rounded-md bg-muted/30">
+                  <FileText className="mx-auto h-10 w-10 mb-3 text-muted-foreground/70" />
+                  <p className="font-medium">No tienes facturas disponibles.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>N° Factura</TableHead><TableHead>Fecha</TableHead><TableHead>Servicio</TableHead>
+                        <TableHead className="text-right">Monto (COP)</TableHead><TableHead>Estado</TableHead><TableHead className="text-center">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {invoices.map((invoice) => (
+                        <TableRow key={invoice.id}>
+                          <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                          <TableCell>{new Date(invoice.date + 'T00:00:00').toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' })}</TableCell>
+                          <TableCell>{invoice.serviceTitle}</TableCell>
+                          <TableCell className="text-right">{invoice.amount.toLocaleString('es-CO')}</TableCell>
+                          <TableCell><Badge variant={getStatusBadgeVariant(invoice.status)} className="capitalize">{invoice.status}</Badge></TableCell>
+                          <TableCell className="text-center">
+                            <Button variant="ghost" size="icon" onClick={() => handleDownloadPdf(invoice.invoiceNumber)} title="Descargar PDF"><Download className="h-4 w-4" /></Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+          </CardContent>
+        </Card>
+      </div>
 
-            <div className="relative w-full max-w-xs sm:max-w-sm ml-auto">
-                <Input
-                    type="search"
-                    placeholder="Buscar servicios..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="rounded-md shadow-sm pr-10 h-9 text-sm w-full"
-                />
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Separator className="my-8" />
+
+      {isProfessional && (
+        <>
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl md:text-3xl font-semibold flex items-center">
+                <Wallet className="mr-3 h-7 w-7 text-primary" /> Tu Cuenta de Ganancias
+              </h2>
             </div>
-
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-              <SheetTrigger asChild>
-                  <Button variant="outline" className="flex-shrink-0 h-9 text-xs px-3">
-                      <Filter className="mr-2 h-4 w-4" /> Filtros
-                  </Button>
-              </SheetTrigger>
-              <SheetContent className="p-0 w-[85%] sm:w-[320px] flex flex-col">
-                  <SheetHeader className="p-4 border-b">
-                      <SheetTitle>Filtrar Servicios</SheetTitle>
-                  </SheetHeader>
-                  <ScrollArea className="flex-grow">
-                      <FiltersContent
-                          currentFilterCategory={currentFilterCategory} setCurrentFilterCategory={setCurrentFilterCategory}
-                          currentFilterLocation={currentFilterLocation} setCurrentFilterLocation={setCurrentFilterLocation}
-                          currentFilterMinRating={currentFilterMinRating} setCurrentFilterMinRating={setCurrentFilterMinRating}
-                          currentFilterMaxRate={currentFilterMaxRate} setCurrentFilterMaxRate={setCurrentFilterMaxRate}
-                          onApplyFilters={handleApplyFilters}
-                      />
-                  </ScrollArea>
-              </SheetContent>
-           </Sheet>
-        </header>
-
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-        {isLoading ? (
-             <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-                {[...Array(6)].map((_, i) => (
-                    <Card key={`skeleton-${i}`} className="flex flex-col overflow-hidden rounded-lg shadow-md bg-card animate-pulse">
-                        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted"></div>
-                        <CardHeader className="p-4 pb-2 space-y-2">
-                            <div className="h-6 w-3/4 bg-muted rounded"></div>
-                            <div className="h-4 w-1/2 bg-muted rounded"></div>
-                        </CardHeader>
-                        <CardContent className="flex-grow p-4 pt-0 space-y-2">
-                            <div className="h-4 w-full bg-muted rounded"></div>
-                            <div className="h-4 w-5/6 bg-muted rounded"></div>
-                            <div className="h-4 w-1/3 bg-muted rounded mt-1"></div>
-                        </CardContent>
-                        <CardFooter className="p-4 pt-2 border-t mt-auto bg-muted/30">
-                             <div className="h-8 w-1/2 bg-muted rounded"></div>
-                             <div className="h-8 w-1/3 bg-muted rounded ml-auto"></div>
-                        </CardFooter>
-                    </Card>
-                ))}
-             </div>
-        ) : filteredServices.length > 0 ? (
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-            {filteredServices.map(service => (
-                <Card key={service.id} className="flex flex-col overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 bg-card">
-                    <Link href={`/service/${service.id}`} passHref>
-                      <div className="relative aspect-[4/3] w-full overflow-hidden cursor-pointer">
-                          <Image
-                              src={service.imageUrl || (service.imageUrls && service.imageUrls[0]) || `https://placehold.co/400x300.png`}
-                              alt={service.title}
-                              fill
-                              style={{ objectFit: "cover" }}
-                              data-ai-hint={service.dataAiHint || `${service.category} service`}
-                          />
-                      </div>
-                    </Link>
-                    <CardContent className="flex-grow p-4 space-y-1">
-                        <CardTitle className="text-lg font-semibold line-clamp-1">
-                           <Link href={`/service/${service.id}`} className="hover:underline">
-                              {service.title}
-                            </Link>
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">{service.category}</p>
-                        <p className="text-sm">
-                            <span className="text-muted-foreground">Tarifa: </span>
-                            <span className="font-medium text-foreground">${service.rate.toLocaleString('es-CO')}</span>
-                            {HOURLY_RATE_CATEGORIES.includes(service.category) ? <span className="text-xs text-muted-foreground"> por hora</span> : <span className="text-xs text-muted-foreground"> /proyecto</span>}
-                        </p>
-                        {service.professionalName && (
-                            <p className="text-sm">
-                                <span className="text-muted-foreground">Profesional: </span>
-                                <span className="text-foreground">{service.professionalName}</span>
-                            </p>
-                        )}
-                         {service.rating && (
-                            <div className="flex items-center gap-1 text-sm">
-                                <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 flex-shrink-0" />
-                                <span className="font-semibold text-foreground">{service.rating.toFixed(1)}</span>
+             <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="text-xl">Saldo Actual en Cuenta</CardTitle>
+                    <CardDescription>El total de tus ganancias listas para ser retiradas.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold text-primary">
+                        {availableBalance.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}
+                    </p>
+                </CardContent>
+                <CardFooter>
+                    <Dialog open={isWithdrawDialogOpen} onOpenChange={setIsWithdrawDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="w-full sm:w-auto" disabled={availableBalance <= 0 || savedPayoutMethods.length === 0}>
+                                <Send className="mr-2 h-4 w-4" /> Solicitar Desembolso
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Solicitar Desembolso</DialogTitle>
+                                <DialogDescription>
+                                    Ingresa el monto y selecciona dónde deseas recibir tu dinero.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Saldo disponible para retirar: <span className="font-semibold text-foreground">{availableBalance.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}</span>
+                                </p>
+                                <div className="space-y-1">
+                                    <Label htmlFor="withdraw-amount">Monto a Retirar (COP)</Label>
+                                    <Input
+                                        id="withdraw-amount"
+                                        type="number"
+                                        placeholder="Ej: 100000"
+                                        value={withdrawAmount}
+                                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                                    />
+                                </div>
+                                {savedPayoutMethods.length > 0 ? (
+                                    <div className="space-y-2">
+                                        <Label>Selecciona tu método de desembolso:</Label>
+                                        <RadioGroup value={selectedPayoutMethodForWithdrawal} onValueChange={setSelectedPayoutMethodForWithdrawal}>
+                                            {savedPayoutMethods.map((method) => (
+                                                <div key={method.id} className="flex items-center space-x-2 p-3 border rounded-md hover:bg-muted/50 transition-colors">
+                                                    <RadioGroupItem value={method.id} id={`payout-option-${method.id}`} />
+                                                    <Label htmlFor={`payout-option-${method.id}`} className="flex-grow cursor-pointer text-sm">
+                                                        <div className="flex items-center">
+                                                          {method.type === 'bancolombia' ? <Banknote className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                           : method.type === 'nequi' ? <Smartphone className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                           : <Mail className="mr-2 h-4 w-4 text-muted-foreground" />}
+                                                           <span className="font-medium capitalize">
+                                                              {method.type === 'bancolombia' ? 'Bancolombia' : method.type}
+                                                           </span>
+                                                           <span className="text-xs text-muted-foreground ml-2">
+                                                            {method.type === 'paypal' ? (method as PayPalPayoutMethod).email : `****${(method as ColombianPayoutMethod).accountNumber.slice(-4)}`}
+                                                           </span>
+                                                        </div>
+                                                        {method.accountHolderName && <p className="text-xs text-muted-foreground ml-6">Titular: {method.accountHolderName}</p>}
+                                                    </Label>
+                                                </div>
+                                            ))}
+                                        </RadioGroup>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-destructive">No tienes métodos de desembolso configurados. Por favor, añade uno primero.</p>
+                                )}
                             </div>
-                        )}
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                            <span>{service.location}</span>
-                        </div>
-                    </CardContent>
-                    <CardFooter className="p-4 pt-2 border-t bg-muted/30">
-                        <Button size="sm" className="w-full h-9 text-sm" asChild>
-                            <Link href={`/service/${service.id}`}>Reservar Servicio</Link>
-                        </Button>
-                    </CardFooter>
-              </Card>
-            ))}
-            </div>
-        ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground text-center p-8 border rounded-lg bg-card mt-6">
-            <Search className="h-12 w-12 mb-4 text-muted-foreground/50" />
-            <p className="text-lg font-medium">No se encontraron servicios</p>
-            <p className="text-sm">Intenta ajustar tu búsqueda o los filtros.</p>
-            </div>
-        )}
-        </main>
+                            <DialogFooter>
+                                <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                                <Button onClick={handleWithdraw} disabled={!withdrawAmount || !selectedPayoutMethodForWithdrawal || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > availableBalance}>
+                                    Confirmar Desembolso (Simulación)
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                     {availableBalance <= 0 && <p className="ml-4 text-sm text-muted-foreground">No tienes saldo para retirar.</p>}
+                     {availableBalance > 0 && savedPayoutMethods.length === 0 && <p className="ml-4 text-sm text-destructive">Configura un método de desembolso para poder retirar.</p>}
+                </CardFooter>
+             </Card>
+          </div>
+
+          <Separator className="my-8" />
+        </>
+      )}
+
+      {isProfessional && (
+           <div>
+             <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl md:text-3xl font-semibold flex items-center">
+                  <Banknote className="mr-3 h-7 w-7 text-primary" />
+                  Tu Cuenta para Recibir Dinero de Clientes
+              </h2>
+             </div>
+             <p className="text-muted-foreground mb-6">
+              Configura aquí la cuenta donde recibirás el dinero de los pagos realizados por tus clientes por los servicios o espacios que ofreces.
+             </p>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Añadir Método de Desembolso</CardTitle>
+                <CardDescription>Configura tu cuenta Bancolombia, Nequi o PayPal para recibir tus ganancias.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="payout-method-type">Tipo de Cuenta</Label>
+                  <Select value={payoutMethodType} onValueChange={(value) => setPayoutMethodType(value as any)}>
+                    <SelectTrigger id="payout-method-type"><SelectValue placeholder="Selecciona un tipo de cuenta" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bancolombia"><div className="flex items-center"><Banknote className="mr-2 h-4 w-4" /> Bancolombia</div></SelectItem>
+                      <SelectItem value="nequi"><div className="flex items-center"><Smartphone className="mr-2 h-4 w-4" /> Nequi</div></SelectItem>
+                      <SelectItem value="paypal"><div className="flex items-center"><Mail className="mr-2 h-4 w-4" /> PayPal</div></SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {payoutMethodType && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="payout-account-holder-name">Nombre del Titular (Opcional)</Label>
+                      <Input id="payout-account-holder-name" placeholder="Ej: Nombre Apellido" value={payoutAccountHolderName} onChange={(e) => setPayoutAccountHolderName(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">Si se deja vacío, se usará el nombre de tu perfil.</p>
+                    </div>
+                    {(payoutMethodType === 'bancolombia' || payoutMethodType === 'nequi') && (
+                      <div className="space-y-2">
+                        <Label htmlFor="payout-account-number">
+                          {payoutMethodType === 'bancolombia' ? 'Número de Cuenta Bancolombia' : 'Número de Celular Nequi'}
+                        </Label>
+                        <Input id="payout-account-number" type={payoutMethodType === 'nequi' ? 'tel' : 'text'} placeholder={payoutMethodType === 'bancolombia' ? 'Ej: 1234567890' : 'Ej: 3001234567'} value={payoutAccountNumber} onChange={(e) => setPayoutAccountNumber(e.target.value)} />
+                      </div>
+                    )}
+                    {payoutMethodType === 'paypal' && (
+                       <div className="space-y-2">
+                        <Label htmlFor="payout-paypal-email">Correo Electrónico de PayPal</Label>
+                        <Input id="payout-paypal-email" type="email" placeholder="tu@correo.com" value={payoutPaypalEmail} onChange={(e) => setPayoutPaypalEmail(e.target.value)} />
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+              <CardFooter>
+                <Button onClick={handleSavePayoutMethod} disabled={!payoutMethodType || (payoutMethodType === 'paypal' ? !payoutPaypalEmail : !payoutAccountNumber) }>
+                  Guardar Método de Desembolso (Simulación)
+                </Button>
+              </CardFooter>
+            </Card>
+
+            {savedPayoutMethods.length > 0 && (
+               <Card className="mt-6">
+                  <CardHeader><CardTitle>Métodos de Desembolso Guardados</CardTitle></CardHeader>
+                  <CardContent>
+                      <ul className="space-y-3">
+                          {savedPayoutMethods.map((method) => (
+                              <li key={method.id} className="flex justify-between items-center p-3 border rounded-md bg-muted/50">
+                                  <div className="flex items-center">
+                                      {method.type === 'bancolombia' ? <Banknote className="mr-3 h-5 w-5 text-primary" /> 
+                                       : method.type === 'nequi' ? <Smartphone className="mr-3 h-5 w-5 text-primary" />
+                                       : <Mail className="mr-3 h-5 w-5 text-primary" />}
+                                      <div>
+                                          <p className="font-medium text-sm capitalize">{method.type === 'bancolombia' ? 'Bancolombia' : method.type === 'nequi' ? 'Nequi' : 'PayPal'}</p>
+                                          <p className="text-xs text-muted-foreground">
+                                              {method.type === 'paypal' ? `Email: ${(method as PayPalPayoutMethod).email}` 
+                                               : `${method.type === 'bancolombia' ? 'Cuenta' : 'Celular'}: ****${(method as ColombianPayoutMethod).accountNumber.slice(-4)}`}
+                                          </p>
+                                          {method.accountHolderName && <p className="text-xs text-muted-foreground">Titular: {method.accountHolderName}</p>}
+                                      </div>
+                                  </div>
+                                  <Button variant="ghost" size="icon" onClick={() => handleDeletePayoutMethod(method.id)} title="Eliminar método">
+                                      <Trash2 className="h-4 w-4" />
+                                  </Button>
+                              </li>
+                          ))}
+                      </ul>
+                  </CardContent>
+               </Card>
+            )}
+           </div>
+      )}
     </div>
   );
 };
 
-
-const HomePage = () => {
+const BillingPage = () => {
   return (
-     <AppLayout>
-       <ServiceListingsPageContent />
-     </AppLayout>
+    <AppLayout>
+      <BillingContent />
+    </AppLayout>
   );
 };
 
-export default HomePage;
+export default BillingPage;
 
-    
