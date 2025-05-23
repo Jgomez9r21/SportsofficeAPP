@@ -146,8 +146,8 @@ interface AuthContextType extends AuthDialogState {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUserState] = useState<User | null>(null); // Renamed to avoid conflict in final log
+  const [isLoggedIn, setIsLoggedInState] = useState(false); // Renamed to avoid conflict in final log
   const [isLoading, setIsLoading] = useState(true);
   const [signupStep, setSignupStep] = useState(1);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -181,8 +181,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("AuthContext: Mount complete, checking Firebase Auth service.");
     if (!firebaseAuth) {
       console.error("CRITICAL AuthContext: Firebase Auth service (firebaseAuth) is not available. User will remain logged out. Check Firebase initialization in src/lib/firebase.ts.");
-      setUser(null);
-      setIsLoggedIn(false);
+      setUserState(null);
+      setIsLoggedInState(false);
       setIsLoading(false);
       return;
     }
@@ -191,99 +191,109 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("AuthContext: Starting auth state listener setup with Firebase Auth.");
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
-      console.log("AuthContext: onAuthStateChanged triggered. User:", firebaseUser ? firebaseUser.uid : 'null');
-      if (firebaseUser) {
-        if (!db) {
-            console.warn("AuthContext: Firestore (db) not available, cannot fetch full user profile for:", firebaseUser.uid);
-            const basicUser: User = {
-                id: firebaseUser.uid,
-                name: firebaseUser.displayName || "Usuario",
-                firstName: firebaseUser.displayName?.split(' ')[0] || "Usuario",
-                lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || "",
-                initials: ((firebaseUser.displayName?.[0] || "") + (firebaseUser.displayName?.split(' ').slice(1).join(' ')?.[0] || "")).toUpperCase() || "U",
-                avatarUrl: firebaseUser.photoURL || "https://i.ibb.co/93cr9Rjd/avatar.png",
-                email: firebaseUser.email || "No disponible",
-                isPhoneVerified: firebaseUser.phoneNumber ? true : false,
-                phone: firebaseUser.phoneNumber || undefined,
-            };
-            setUser(basicUser);
-            setIsLoggedIn(true);
-            console.log("AuthContext: Set basic user due to Firestore unavailability.");
-        } else {
-            try {
-              const userDocRef = doc(db, "users", firebaseUser.uid);
-              const userDocSnap = await getDoc(userDocRef);
-              if (userDocSnap.exists()) {
-                const userDataFromDb = userDocSnap.data();
-                const appUser: User = {
+      console.log("AuthContext: onAuthStateChanged event received. User:", firebaseUser ? firebaseUser.uid : 'null');
+      try {
+        if (firebaseUser) {
+          if (!db) {
+              console.warn("AuthContext: Firestore (db) not available, cannot fetch full user profile for:", firebaseUser.uid);
+              const basicUser: User = {
                   id: firebaseUser.uid,
-                  name: userDataFromDb.name || `${userDataFromDb.firstName} ${userDataFromDb.lastName}` || firebaseUser.displayName || "Usuario",
-                  firstName: userDataFromDb.firstName || firebaseUser.displayName?.split(' ')[0] || "Usuario",
-                  lastName: userDataFromDb.lastName || firebaseUser.displayName?.split(' ').slice(1).join(' ') || "",
-                  initials: ((userDataFromDb.firstName?.[0] || "") + (userDataFromDb.lastName?.[0] || "")).toUpperCase() || "U",
-                  avatarUrl: userDataFromDb.avatarUrl || firebaseUser.photoURL || "https://i.ibb.co/93cr9Rjd/avatar.png",
-                  email: firebaseUser.email || userDataFromDb.email || "No disponible",
-                  phone: userDataFromDb.phone || firebaseUser.phoneNumber || undefined,
-                  country: userDataFromDb.country || undefined,
-                  dob: userDataFromDb.dob || null,
-                  isPhoneVerified: userDataFromDb.isPhoneVerified !== undefined ? userDataFromDb.isPhoneVerified : (firebaseUser.phoneNumber ? true : false),
-                  profileType: userDataFromDb.profileType || undefined,
-                  gender: userDataFromDb.gender || undefined,
-                  documentType: userDataFromDb.documentType || undefined,
-                  documentNumber: userDataFromDb.documentNumber || undefined,
-                  createdAt: userDataFromDb.createdAt instanceof Timestamp ? userDataFromDb.createdAt : null,
-                };
-                setUser(appUser);
-                setIsLoggedIn(true);
-                console.log("AuthContext: User data fetched from Firestore for", appUser.id);
-              } else {
-                console.warn(`AuthContext: User ${firebaseUser.uid} found in Auth but not in Firestore. Creating basic profile.`);
-                 const basicUser: User = {
+                  name: firebaseUser.displayName || "Usuario",
+                  firstName: firebaseUser.displayName?.split(' ')[0] || "Usuario",
+                  lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || "",
+                  initials: ((firebaseUser.displayName?.[0] || "") + (firebaseUser.displayName?.split(' ').slice(1).join(' ')?.[0] || "")).toUpperCase() || "U",
+                  avatarUrl: firebaseUser.photoURL || "https://i.ibb.co/93cr9Rjd/avatar.png",
+                  email: firebaseUser.email || "No disponible",
+                  isPhoneVerified: firebaseUser.phoneNumber ? true : false,
+                  phone: firebaseUser.phoneNumber || undefined,
+              };
+              setUserState(basicUser);
+              setIsLoggedInState(true);
+              console.log("AuthContext: Set basic user due to Firestore unavailability.");
+          } else {
+              console.log("AuthContext: Firestore (db) service IS available. Attempting to fetch profile for:", firebaseUser.uid);
+              try {
+                const userDocRef = doc(db, "users", firebaseUser.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                  const userDataFromDb = userDocSnap.data();
+                  const appUser: User = {
                     id: firebaseUser.uid,
-                    name: firebaseUser.displayName || "Usuario",
-                    firstName: firebaseUser.displayName?.split(' ')[0] || "Usuario",
-                    lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || "",
-                    initials: ((firebaseUser.displayName?.[0] || "") + (firebaseUser.displayName?.split(' ').slice(1).join(' ')?.[0] || "")).toUpperCase() || "U",
-                    avatarUrl: firebaseUser.photoURL || "https://i.ibb.co/93cr9Rjd/avatar.png",
-                    email: firebaseUser.email || "No disponible",
-                    isPhoneVerified: firebaseUser.phoneNumber ? true : false,
-                    phone: firebaseUser.phoneNumber || undefined,
-                };
-                setUser(basicUser);
-                setIsLoggedIn(true);
+                    name: userDataFromDb.name || `${userDataFromDb.firstName} ${userDataFromDb.lastName}` || firebaseUser.displayName || "Usuario",
+                    firstName: userDataFromDb.firstName || firebaseUser.displayName?.split(' ')[0] || "Usuario",
+                    lastName: userDataFromDb.lastName || firebaseUser.displayName?.split(' ').slice(1).join(' ') || "",
+                    initials: ((userDataFromDb.firstName?.[0] || "") + (userDataFromDb.lastName?.[0] || "")).toUpperCase() || "U",
+                    avatarUrl: userDataFromDb.avatarUrl || firebaseUser.photoURL || "https://i.ibb.co/93cr9Rjd/avatar.png",
+                    email: firebaseUser.email || userDataFromDb.email || "No disponible",
+                    phone: userDataFromDb.phone || firebaseUser.phoneNumber || undefined,
+                    country: userDataFromDb.country || undefined,
+                    dob: userDataFromDb.dob || null,
+                    isPhoneVerified: userDataFromDb.isPhoneVerified !== undefined ? userDataFromDb.isPhoneVerified : (firebaseUser.phoneNumber ? true : false),
+                    profileType: userDataFromDb.profileType || undefined,
+                    gender: userDataFromDb.gender || undefined,
+                    documentType: userDataFromDb.documentType || undefined,
+                    documentNumber: userDataFromDb.documentNumber || undefined,
+                    createdAt: userDataFromDb.createdAt instanceof Timestamp ? userDataFromDb.createdAt : null,
+                  };
+                  setUserState(appUser);
+                  setIsLoggedInState(true);
+                  console.log("AuthContext: User data fetched from Firestore for", appUser.id);
+                } else {
+                  console.warn(`AuthContext: User ${firebaseUser.uid} found in Auth but not in Firestore. Creating basic profile.`);
+                   const basicUser: User = {
+                      id: firebaseUser.uid,
+                      name: firebaseUser.displayName || "Usuario",
+                      firstName: firebaseUser.displayName?.split(' ')[0] || "Usuario",
+                      lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || "",
+                      initials: ((firebaseUser.displayName?.[0] || "") + (firebaseUser.displayName?.split(' ').slice(1).join(' ')?.[0] || "")).toUpperCase() || "U",
+                      avatarUrl: firebaseUser.photoURL || "https://i.ibb.co/93cr9Rjd/avatar.png",
+                      email: firebaseUser.email || "No disponible",
+                      isPhoneVerified: firebaseUser.phoneNumber ? true : false,
+                      phone: firebaseUser.phoneNumber || undefined,
+                  };
+                  setUserState(basicUser);
+                  setIsLoggedInState(true);
+                }
+              } catch (error) { // Catches errors from Firestore operations
+                console.error("AuthContext: Error fetching user data from Firestore or processing it:", error);
+                 const basicUser: User = { // Fallback to basic user
+                      id: firebaseUser.uid,
+                      name: firebaseUser.displayName || "Usuario",
+                      firstName: firebaseUser.displayName?.split(' ')[0] || "Usuario",
+                      lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || "",
+                      initials: ((firebaseUser.displayName?.[0] || "") + (firebaseUser.displayName?.split(' ').slice(1).join(' ')?.[0] || "")).toUpperCase() || "U",
+                      avatarUrl: firebaseUser.photoURL || "https://i.ibb.co/93cr9Rjd/avatar.png",
+                      email: firebaseUser.email || "No disponible",
+                      isPhoneVerified: firebaseUser.phoneNumber ? true : false,
+                      phone: firebaseUser.phoneNumber || undefined,
+                  };
+                  setUserState(basicUser);
+                  setIsLoggedInState(true);
+                  console.log("AuthContext: Fallback to basic user due to Firestore error.");
               }
-            } catch (error) {
-              console.error("AuthContext: Error fetching user data from Firestore:", error);
-               const basicUser: User = {
-                    id: firebaseUser.uid,
-                    name: firebaseUser.displayName || "Usuario",
-                    firstName: firebaseUser.displayName?.split(' ')[0] || "Usuario",
-                    lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || "",
-                    initials: ((firebaseUser.displayName?.[0] || "") + (firebaseUser.displayName?.split(' ').slice(1).join(' ')?.[0] || "")).toUpperCase() || "U",
-                    avatarUrl: firebaseUser.photoURL || "https://i.ibb.co/93cr9Rjd/avatar.png",
-                    email: firebaseUser.email || "No disponible",
-                    isPhoneVerified: firebaseUser.phoneNumber ? true : false,
-                    phone: firebaseUser.phoneNumber || undefined,
-                };
-                setUser(basicUser);
-                setIsLoggedIn(true);
-                console.log("AuthContext: Fallback to basic user due to Firestore error.");
-            }
+          }
+        } else { // firebaseUser is null
+          setUserState(null);
+          setIsLoggedInState(false);
+          console.log("AuthContext: No Firebase user found (firebaseUser is null).");
         }
-      } else {
-        setUser(null);
-        setIsLoggedIn(false);
-        console.log("AuthContext: No Firebase user found.");
+      } catch (e) { // Catch any unexpected error during the entire if/else block
+        console.error("AuthContext: Unexpected error during onAuthStateChanged processing:", e);
+        setUserState(null); // Reset to a known safe state
+        setIsLoggedInState(false);
+      } finally {
+        // This block ensures isLoading is always set to false after processing the auth state.
+        setIsLoading(false);
+        // Logging current state after update for clarity
+        console.log(`AuthContext: isLoading set to false. Current User: ${user ? user.id : 'null'}, IsLoggedIn: ${isLoggedIn}`);
       }
-      console.log("AuthContext: Setting isLoading to false.");
-      setIsLoading(false);
     });
 
     return () => {
       console.log("AuthContext: Unsubscribing from auth state listener.");
       unsubscribe();
     };
-  }, [hasMounted, toast]);
+  }, [hasMounted]); // Only re-run if hasMounted changes. Other dependencies are handled internally or are stable.
 
 
   const resetPhoneVerification = useCallback(() => {
@@ -399,8 +409,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(async () => {
     if (!firebaseAuth) {
         console.warn("Firebase Auth not available for logout.");
-        setUser(null);
-        setIsLoggedIn(false);
+        setUserState(null);
+        setIsLoggedInState(false);
         return;
     }
     try {
@@ -486,7 +496,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const userDocRef = doc(db, "users", user.id);
             await updateDoc(userDocRef, firestoreUpdateData);
-            setUser(prevUser => ({ ...prevUser!, ...firestoreUpdateData, avatarUrl: newAvatarUrl }));
+            setUserState(prevUser => ({ ...prevUser!, ...firestoreUpdateData, avatarUrl: newAvatarUrl }));
         } catch (error) {
             console.error("Error updating user in Firestore:", error);
             toast({ title: "Error de Base de Datos", description: "No se pudieron guardar los cambios en el servidor.", variant: "destructive" });
@@ -562,7 +572,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
            if (user && firebaseAuth.currentUser && db ) { 
                 await updateFirebaseProfile(firebaseAuth.currentUser, { phoneNumber: verifiedFirebaseUser.phoneNumber }); 
                 await updateDoc(doc(db, "users", user.id), { phone: verifiedFirebaseUser.phoneNumber, isPhoneVerified: true });
-                setUser(prev => prev ? {...prev, phone: verifiedFirebaseUser.phoneNumber || prev.phone, isPhoneVerified: true} : null);
+                setUserState(prev => prev ? {...prev, phone: verifiedFirebaseUser.phoneNumber || prev.phone, isPhoneVerified: true} : null);
            }
 
            setConfirmationResult(null);
@@ -722,8 +732,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   const value: AuthContextType = {
-    user,
-    isLoggedIn,
+    user: user, // Use the renamed state variable
+    isLoggedIn: isLoggedIn, // Use the renamed state variable
     isLoading,
     signupStep,
     loginError,
@@ -770,3 +780,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
