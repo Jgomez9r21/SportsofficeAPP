@@ -11,6 +11,7 @@ import { z } from "zod";
 import Image from 'next/image';
 import logoImage from '@/image/iconologo.png'; 
 import logotexto from '@/image/logoo.png';
+import ErrorBoundary from '@/components/ErrorBoundary'; // Import ErrorBoundary
 
 // ruta footer
 import Footer from '@/components/ui/footer';
@@ -704,8 +705,8 @@ export default function AppLayout({
     showLoginDialog,
     showProfileDialog,
     handleOpenChange,
-    openLoginDialog,
-    openProfileDialog,
+    openLoginDialog, // Now available from context
+    openProfileDialog, // Now available from context
    } = useAuth();
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   
@@ -855,9 +856,11 @@ export default function AppLayout({
                </header>
 
               <SidebarInset className="flex-1 overflow-auto flex flex-col">
-                  <div className="flex-grow">
-                    {children}
-                  </div>
+                 <ErrorBoundary>
+                    <div className="flex-grow">
+                      {children}
+                    </div>
+                 </ErrorBoundary>
                {/*footer*/}
                <Footer /> 
               </SidebarInset>
