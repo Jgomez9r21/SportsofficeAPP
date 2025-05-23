@@ -2,7 +2,7 @@
 "use client";
 
 import type React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Added useEffect
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -21,12 +21,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, Building, DollarSign, X, BarChart, Camera,Edit, Music, Lightbulb, Database, ImageIcon as LucideImageIcon, User as UserIconLucide, Code as CodeIcon, Construction as ConstructionIcon, School2 as School2Icon, Palette as PaletteIcon, HomeIcon as LucideHomeIcon, UploadCloud, Shield } from 'lucide-react'; // Changed ShieldUser to Shield
+import { Briefcase, Building, DollarSign, X, BarChart, Camera,Edit, Music, Lightbulb, Database, ImageIcon as LucideImageIcon, User as UserIconLucide, Code as CodeIcon, Construction as ConstructionIcon, School2 as School2Icon, Palette as PaletteIcon, HomeIcon as LucideHomeIcon, UploadCloud, Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HOURLY_RATE_CATEGORIES } from '@/lib/config';
 import Image from 'next/image';
-import { categoriasDisponibles } from '@/app/sports-facilities/page'; // Import categories
+import { categoriasDisponibles } from '@/app/sports-facilities/page';
+import { useRouter } from 'next/navigation'; // Added useRouter
 
 // --- Common Types and Constants ---
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per image
@@ -79,7 +80,7 @@ function SportsFacilityPublicationForm() {
         category: 'Instalación Deportiva',
         images: data.images ? data.images.map(img => ({ name: img.name, size: img.size, type: img.type })) : null,
     });
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
     toast({
         title: "Espacio Deportivo Guardado (Simulación)",
         description: "Tu espacio deportivo ha sido guardado y publicado correctamente (simulación).",
@@ -104,7 +105,6 @@ function SportsFacilityPublicationForm() {
     const newFiles = [...existingFiles, ...files];
     form.setValue("images", newFiles, { shouldValidate: true });
 
-    const newPreviews: string[] = [];
     Promise.all(newFiles.map(file => new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -128,6 +128,7 @@ function SportsFacilityPublicationForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 md:space-y-8">
+        {/* Form fields remain the same */}
         <FormField control={form.control} name="title" render={({ field }) => (
           <FormItem>
             <FormLabel>Nombre del Espacio Deportivo</FormLabel>
@@ -276,7 +277,7 @@ const independentServiceCategories: IndependentServiceCategory[] = [
   { name: 'Música & Audio', icon: Music },
   { name: 'Finanzas', icon: DollarSign },
   { name: 'Crecimiento Personal', icon: Lightbulb },
-  { name: 'Seguridad', icon: Shield}, // Changed ShieldUser to Shield
+  { name: 'Seguridad', icon: Shield},
   { name: 'Fotografía', icon: LucideImageIcon },
 ];
 
@@ -319,7 +320,7 @@ function IndependentServicePublicationForm() {
         ...data,
         images: data.images ? data.images.map(img => ({ name: img.name, size: img.size, type: img.type })) : null,
     });
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
     toast({
         title: "Servicio Independiente Guardado (Simulación)",
         description: "Tu servicio ha sido guardado y publicado correctamente (simulación).",
@@ -344,7 +345,6 @@ function IndependentServicePublicationForm() {
     const newFiles = [...existingFiles, ...files];
     form.setValue("images", newFiles, { shouldValidate: true });
 
-    const newPreviews: string[] = [];
     Promise.all(newFiles.map(file => new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -368,6 +368,7 @@ function IndependentServicePublicationForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 md:space-y-8">
+        {/* Form fields remain the same */}
         <FormField control={form.control} name="title" render={({ field }) => (
           <FormItem>
             <FormLabel>Título del Servicio</FormLabel>
@@ -480,25 +481,20 @@ function IndependentServicePublicationForm() {
 
 // --- Main Page Content ---
 const PostJobContent = () => {
-  const { isLoggedIn, isLoading, openLoginDialog } = useAuth();
+  const { isLoggedIn, isLoading, redirectToLogin } = useAuth(); // Changed openLoginDialog to redirectToLogin
+  const router = useRouter(); // Initialize useRouter
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && !isLoggedIn) {
+      redirectToLogin(); // Redirect if not loading and not logged in
+    }
+  }, [isLoading, isLoggedIn, redirectToLogin]);
+
+
+  if (isLoading || (!isLoggedIn && !isLoading)) { // Show loading if auth is loading OR if not logged in and not loading (implies redirection is about to happen)
     return (
       <div className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto flex justify-center items-center h-64">
         <p>Cargando...</p>
-      </div>
-    );
-  }
-
-  if (!isLoggedIn) {
-    return (
-      <div className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center border rounded-lg bg-card">
-        <UploadCloud className="h-16 w-16 text-muted-foreground/50 mb-6" />
-        <h2 className="text-xl font-medium mb-2 text-foreground">Acceso Restringido</h2>
-        <p className="text-muted-foreground mb-6 max-w-md">
-          Debes iniciar sesión o crear una cuenta para poder publicar tus servicios o espacios.
-        </p>
-        <Button onClick={openLoginDialog}>Iniciar Sesión / Crear Cuenta</Button>
       </div>
     );
   }
@@ -542,5 +538,3 @@ const PostJobPage = () => {
 };
 
 export default PostJobPage;
-
-    
