@@ -1,4 +1,3 @@
-
 // This file contains the initialization and configuration for the Firebase Admin SDK.
 
 import * as admin from 'firebase-admin';
@@ -66,13 +65,12 @@ if (admin.apps.length > 0) {
   }
 }
 
-if (!adminAppInstance && admin.apps.length === 0) { // Only log critical if it truly failed to initialize AND no app exists at all
+if (!adminAppInstance && admin.apps.length === 0) { // Only log critical if it truly failed to initialize and no app exists
     console.error(
-      "CRITICAL FAILURE: Firebase Admin SDK could not be initialized and no existing Admin app instance was found. " +
-      "Server-side Firebase functionalities (including Genkit flows that might rely on it) will NOT work. " +
-      "This is a likely cause for 'Error reaching server' or other backend-related issues. " +
-      "Please URGENTLY check your environment variables for Firebase Admin (e.g., FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_PRIVATE_KEY, FIREBASE_ADMIN_CLIENT_EMAIL) " +
-      "OR ensure Application Default Credentials (ADC) are correctly configured if service account keys are not being provided."
+      "CRITICAL: Firebase Admin SDK failed to initialize. " +
+      "Genkit flows and other server-side Firebase functionalities will likely not work. " +
+      "Please check your environment variables for Firebase Admin (e.g., FIREBASE_ADMIN_PROJECT_ID) " +
+      "OR ensure Application Default Credentials are correctly configured if service account keys are not provided."
     );
 }
 
@@ -80,4 +78,3 @@ export const adminApp = adminAppInstance;
 // You might also want to export specific services like auth or firestore:
 // export const adminAuth = adminAppInstance ? adminAppInstance.auth() : null;
 // export const adminDb = adminAppInstance ? adminAppInstance.firestore() : null;
-

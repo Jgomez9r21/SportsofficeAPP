@@ -33,7 +33,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useRouter } from 'next/navigation'; // Import useRouter
 
 interface Invoice {
   id: string;
@@ -74,9 +73,8 @@ const MOCK_AVAILABLE_BALANCE = 500000;
 
 
 const BillingContent = () => {
-  const { user, isLoggedIn, isLoading, redirectToLogin } = useAuth(); // Changed openLoginDialog to redirectToLogin
+  const { user, isLoggedIn, isLoading, openLoginDialog } = useAuth();
   const { toast } = useToast();
-  const router = useRouter(); // Initialize useRouter
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isInvoiceDataLoading, setIsInvoiceDataLoading] = useState(true);
@@ -94,9 +92,7 @@ const BillingContent = () => {
 
 
   useEffect(() => {
-    if (isLoading) return; // Wait for auth state to be determined
-
-    if (isLoggedIn && user) {
+    if (isLoggedIn) {
       setIsInvoiceDataLoading(true);
       try {
         const storedInvoicesRaw = localStorage.getItem(STORED_INVOICES_KEY);
@@ -114,14 +110,12 @@ const BillingContent = () => {
       } catch (error) { console.error("Error loading payout methods:", error); }
       
       setIsInvoiceDataLoading(false);
-    } else if (!isLoading && !isLoggedIn) { // Only redirect if not loading and not logged in
-        redirectToLogin(); // Redirect to login page
-    } else { // Not logged in but still loading or some other state
+    } else {
       setIsInvoiceDataLoading(false);
       setInvoices([]);
       setSavedPayoutMethods([]);
     }
-  }, [isLoggedIn, user, isLoading, redirectToLogin]);
+  }, [isLoggedIn, user]);
 
 
   useEffect(() => {
@@ -216,10 +210,22 @@ const BillingContent = () => {
   };
 
 
-  if (isLoading || (!isLoggedIn && !isLoading)) { // Show loading if auth is loading OR if not logged in and not loading (implies redirection is about to happen)
+  if (isLoading) {
     return <div className="flex flex-col flex-grow items-center justify-center p-4"><p>Cargando facturación...</p></div>;
   }
 
+  if (!isLoggedIn) {
+    return (
+      <div className="flex flex-col flex-grow items-center justify-center p-4">
+        <div className="p-6 md:p-8 flex flex-col items-center text-center border rounded-lg bg-card shadow-lg max-w-md">
+          <FileText className="h-16 w-16 text-muted-foreground/50 mb-6" />
+          <h2 className="text-xl font-medium mb-2 text-foreground">Acceso Restringido a Facturación</h2>
+          <p className="text-muted-foreground mb-6 max-w-sm">Debes iniciar sesión o crear una cuenta para gestionar tu facturación.</p>
+          <Button onClick={openLoginDialog}>Iniciar Sesión / Crear Cuenta</Button>
+        </div>
+      </div>
+    );
+  }
 
   const isProfessional = user?.profileType === 'profesional' || user?.profileType === 'propietario_espacio';
 
@@ -473,3 +479,4 @@ const BillingPage = () => {
 };
 
 export default BillingPage;
+
