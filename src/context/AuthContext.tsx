@@ -18,7 +18,7 @@ import {
   type User as FirebaseUser,
   onAuthStateChanged
 } from 'firebase/auth';
-import { auth as firebaseAuth, db, app as firebaseApp } from '@/lib/firebase';
+import { auth as firebaseAuth, db, app as firebaseApp, isFirebaseInitialized } from '@/lib/firebase'; // Import isFirebaseInitialized
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from 'next/navigation';
 
@@ -107,6 +107,7 @@ interface AuthContextType extends AuthDialogState {
   user: User | null;
   isLoggedIn: boolean;
   isLoading: boolean;
+  firebaseConfigError: boolean; // New state for Firebase config error
   signupStep: number;
   loginError: string | null;
   phoneVerificationError: string | null;
@@ -147,7 +148,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userState, setUserState] = useState<User | null>(null);
   const [isLoggedInState, setIsLoggedInState] = useState(false);
-  const [isLoadingState, setIsLoadingState] = useState(true); // Renamed to avoid conflict
+  const [isLoadingState, setIsLoadingState] = useState(true);
+  const [firebaseConfigErrorState, setFirebaseConfigErrorState] = useState(false); // New state
   const [signupStep, setSignupStep] = useState(1);
   const [loginError, setLoginError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -174,40 +176,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!hasMounted) {
       console.log("AuthContext: Waiting for mount.");
-      return () => {}; // Return empty cleanup
+      return () => {};
     }
 
     console.log("AuthContext: Mount complete. Setting up auth state listener.");
     let unsubscribe = () => {};
     let loadingTimeoutId: NodeJS.Timeout | null = null;
 
-    // Start loading, and set a timeout to force loading to false if it takes too long.
     setIsLoadingState(true);
+    setFirebaseConfigErrorState(!isFirebaseInitialized); // Check Firebase initialization status
+
+    if (!isFirebaseInitialized) {
+      console.error("AuthContext: Firebase is not initialized due to configuration errors. Auth functionalities will be disabled.");
+      setUserState(null);
+      setIsLoggedInState(false);
+      setIsLoadingState(false);
+      return () => {}; // No need to set up listeners or timeout if Firebase isn't init
+    }
+
+    console.log("AuthContext: Firebase is initialized. Proceeding with auth check.");
     loadingTimeoutId = setTimeout(() => {
-      // Use a callback with setIsLoadingState to get the current value of isLoadingState
       setIsLoadingState(currentIsLoading => {
         if (currentIsLoading) {
           console.warn("AuthContext: Auth check timed out after 15 seconds. Forcing isLoading to false. This might indicate issues with Firebase connection or onAuthStateChanged not firing.");
-          setUserState(null); // Assume no user if timed out
+          setUserState(null);
           setIsLoggedInState(false);
-          return false; // This is the new value for isLoadingState
+          return false;
         }
-        return currentIsLoading; // No change if already false
+        return currentIsLoading;
       });
-    }, 15000); // 15 seconds timeout
+    }, 15000);
 
     if (!firebaseAuth) {
       console.error("CRITICAL AuthContext: Firebase Auth service (firebaseAuth) is not available. User will remain logged out. Check Firebase initialization in src/lib/firebase.ts.");
       setUserState(null);
       setIsLoggedInState(false);
       setIsLoadingState(false);
+      setFirebaseConfigErrorState(true);
       if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
-      return () => {}; // Return empty cleanup
+      return () => {};
     }
+    console.log("AuthContext: firebaseAuth service is available, proceeding to set up onAuthStateChanged.");
     
     unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
-      console.log("AuthContext: onAuthStateChanged event received. User:", firebaseUser ? firebaseUser.uid : 'null');
-      if (loadingTimeoutId) clearTimeout(loadingTimeoutId); // Clear timeout as we received an event
+      console.log("AuthContext: onAuthStateChanged event received. User UID:", firebaseUser ? firebaseUser.uid : 'null');
+      if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
 
       try {
         if (firebaseUser) {
@@ -281,6 +294,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`AuthContext: isLoading set to false. User: ${userState ? userState.id : 'null'}, IsLoggedIn: ${isLoggedInState}`);
       }
     });
+    console.log("AuthContext: onAuthStateChanged listener attached.");
 
     return () => {
       console.log("AuthContext: Unsubscribing from auth state listener.");
@@ -301,7 +315,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoginError(null);
     setIsLoadingState(true);
 
-    if (!firebaseAuth) {
+    if (!firebaseAuth || !isFirebaseInitialized) {
         setLoginError("Error de Firebase: Servicio de autenticación no disponible.");
         toast({ title: "Error de Firebase", description: "El servicio de autenticación no está disponible.", variant: "destructive" });
         setIsLoadingState(false);
@@ -335,13 +349,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoadingState(true);
     setLoginError(null);
 
-    if (!firebaseAuth) {
+    if (!firebaseAuth || !isFirebaseInitialized) {
         setLoginError("Error de Firebase: Servicio de autenticación no disponible.");
         toast({ title: "Error de Firebase", description: "El servicio de autenticación no está disponible.", variant: "destructive" });
         setIsLoadingState(false);
         return;
     }
-    if (!db) {
+    if (!db && isFirebaseInitialized) { // Check db only if firebase is initialized
         setLoginError("Error de Base de Datos: Firestore no está disponible.");
         toast({ title: "Error de Base de Datos", description: "No se pueden guardar los datos del perfil.", variant: "destructive" });
         setIsLoadingState(false);
@@ -372,7 +386,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: serverTimestamp(),
       };
 
-      await setDoc(doc(db, "users", firebaseUser.uid), newUserForFirestore);
+      if (db) { // Guard again before using db
+        await setDoc(doc(db, "users", firebaseUser.uid), newUserForFirestore);
+      } else if (isFirebaseInitialized) { // Log if db is still not available but firebase was init
+         console.warn("AuthContext (Signup): Firestore (db) not available, could not save extended user profile for:", firebaseUser.uid);
+      }
+
       setSignupStep(1);
       toast({ title: "Cuenta Creada", description: `¡Bienvenido/a, ${details.firstName}! Tu cuenta ha sido creada.` });
       setDialogState(prev => ({ ...prev, currentView: 'login' })); 
@@ -401,7 +420,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   const logout = useCallback(async () => {
-    if (!firebaseAuth) {
+    if (!firebaseAuth || !isFirebaseInitialized) {
         console.warn("Firebase Auth not available for logout.");
         setUserState(null);
         setIsLoggedInState(false);
@@ -422,7 +441,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [logout]);
 
   const updateUser = useCallback(async (data: UpdateProfileData) => {
-      if (!userState || !firebaseAuth.currentUser) {
+      if (!userState || !firebaseAuth?.currentUser) { // check firebaseAuth as well
             toast({
                 title: "Error",
                 description: "No se pudo actualizar el perfil. Usuario no encontrado o no autenticado.",
@@ -431,7 +450,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoadingState(false); 
             return;
        }
-      if (!db && userState.id !== 'usr123') { 
+      if (!db && userState.id !== 'usr123' && isFirebaseInitialized) { 
             toast({ title: "Error de Base de Datos", description: "No se pueden guardar los cambios en el servidor.", variant: "destructive" });
             setIsLoadingState(false); 
             return;
@@ -508,7 +527,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    const sendVerificationCode = useCallback(async (phoneNumber: string, recaptchaVerifier: RecaptchaVerifier) => {
        setPhoneVerificationError(null);
        setIsLoadingState(true);
-       if (!firebaseAuth) {
+       if (!firebaseAuth || !isFirebaseInitialized) {
            setPhoneVerificationError("Error de Firebase: Servicio de autenticación no disponible.");
            toast({ title: "Error de Firebase", description: "El servicio de autenticación no está disponible.", variant: "destructive" });
            setIsLoadingState(false);
@@ -563,7 +582,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
            const credential = await confirmationResult.confirm(code);
            const verifiedFirebaseUser = credential.user as FirebaseUser;
 
-           if (userState && firebaseAuth.currentUser && db ) { 
+           if (userState && firebaseAuth?.currentUser && db ) { // check firebaseAuth
                 await updateFirebaseProfile(firebaseAuth.currentUser, { phoneNumber: verifiedFirebaseUser.phoneNumber }); 
                 await updateDoc(doc(db, "users", userState.id), { phone: verifiedFirebaseUser.phoneNumber, isPhoneVerified: true });
                 setUserState(prev => prev ? {...prev, phone: verifiedFirebaseUser.phoneNumber || prev.phone, isPhoneVerified: true} : null);
@@ -610,7 +629,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleForgotPasswordSubmit = useCallback(async (data: ForgotPasswordValues, resetForm: UseFormReset<ForgotPasswordValues>) => {
     setIsLoadingState(true);
-    if (!firebaseAuth) {
+    if (!firebaseAuth || !isFirebaseInitialized) {
         toast({ title: "Error de Firebase", description: "El servicio de autenticación no está disponible.", variant: "destructive" });
         setIsLoadingState(false);
         return;
@@ -729,6 +748,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user: userState, 
     isLoggedIn: isLoggedInState, 
     isLoading: isLoadingState,
+    firebaseConfigError: firebaseConfigErrorState,
     signupStep,
     loginError,
     phoneVerificationError,
@@ -774,4 +794,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-

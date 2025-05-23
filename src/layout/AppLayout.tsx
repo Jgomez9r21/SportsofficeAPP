@@ -11,9 +11,8 @@ import { z } from "zod";
 import Image from 'next/image';
 import logoImage from '@/image/iconologo.png'; 
 import logotexto from '@/image/logoo.png';
-import ErrorBoundary from '@/components/ErrorBoundary'; // Import ErrorBoundary
+import ErrorBoundary from '@/components/ErrorBoundary';
 
-// ruta footer
 import Footer from '@/components/ui/footer';
 import {
   Sheet,
@@ -36,7 +35,7 @@ import {
 } from "../components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Toaster } from "@/components/ui/toaster";
-import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Search as SearchIcon, UserCircle, X as XIcon, Eye, EyeOff, ChevronLeft, ChevronRight, LogIn, Dumbbell, Menu, ArrowRight, Building, Waves, LayoutGrid, FileText, ShieldCheck } from "lucide-react";
+import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Search as SearchIcon, UserCircle, X as XIcon, Eye, EyeOff, ChevronLeft, ChevronRight, LogIn, Dumbbell, Menu, ArrowRight, Building, Waves, LayoutGrid, FileText, ShieldCheck, AlertTriangle } from "lucide-react"; // Added AlertTriangle
 
 import { Button } from '@/components/ui/button';
 import {
@@ -702,17 +701,48 @@ export default function AppLayout({
   const {
     user,
     isLoggedIn,
+    isLoading,
+    firebaseConfigError, // Consume the new state
     showLoginDialog,
     showProfileDialog,
     handleOpenChange,
-    openLoginDialog, // Now available from context
-    openProfileDialog, // Now available from context
+    openLoginDialog,
+    openProfileDialog,
    } = useAuth();
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   
   const handleMobileSheetOpenChange = (open: boolean) => {
     setIsMobileSheetOpen(open);
   };
+
+  if (isLoading) {
+    return (
+        <div className="flex h-screen w-screen items-center justify-center bg-background">
+            <div className="flex flex-col items-center space-y-4">
+                <Dumbbell className="h-16 w-16 animate-spin text-primary" />
+                <p className="text-muted-foreground">Cargando aplicación...</p>
+            </div>
+        </div>
+    );
+  }
+
+  if (firebaseConfigError) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/90 p-8 text-center">
+        <AlertTriangle className="h-16 w-16 text-destructive mb-6" />
+        <h1 className="text-2xl font-bold text-destructive mb-4">Error de Configuración Crítico</h1>
+        <p className="text-lg text-foreground mb-2">
+          Sportoffice no puede iniciarse correctamente.
+        </p>
+        <p className="text-md text-muted-foreground mb-6 max-w-lg">
+          Asegúrate de que las variables de entorno de Firebase (como <code className="bg-muted px-1 py-0.5 rounded-sm font-mono text-sm">NEXT_PUBLIC_FIREBASE_API_KEY</code> y <code className="bg-muted px-1 py-0.5 rounded-sm font-mono text-sm">NEXT_PUBLIC_FIREBASE_PROJECT_ID</code>) estén correctamente configuradas en tu archivo <code className="bg-muted px-1 py-0.5 rounded-sm font-mono text-sm">.env.local</code>.
+        </p>
+        <p className="text-md text-muted-foreground">
+          Después de verificar, por favor, **reinicia tu servidor de desarrollo**.
+        </p>
+      </div>
+    );
+  }
 
   return (
       <>
@@ -861,7 +891,6 @@ export default function AppLayout({
                       {children}
                     </div>
                  </ErrorBoundary>
-               {/*footer*/}
                <Footer /> 
               </SidebarInset>
             </div>

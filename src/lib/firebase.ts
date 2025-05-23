@@ -7,6 +7,7 @@ import { getFirestore, type Firestore } from "firebase/firestore"; // Import Fir
 let app: FirebaseApp | undefined = undefined;
 let auth: Auth | undefined = undefined;
 let db: Firestore | undefined = undefined;
+let isFirebaseInitialized = false;
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -32,23 +33,27 @@ if (!essentialConfigPresent) {
                 console.log("Attempting to initialize Firebase with config:", firebaseConfig);
                 app = initializeApp(firebaseConfig as FirebaseOptions);
                 console.log("Firebase initialized successfully. Project ID:", app.options.projectId);
+                isFirebaseInitialized = true;
             } catch (error: any) {
                 console.error("CRITICAL: Error initializing Firebase client SDK:", error.message, error.stack);
                 app = undefined;
+                isFirebaseInitialized = false;
             }
         } else {
             try {
                 app = getApp();
                 console.log("Firebase client SDK already initialized. Project ID:", app.options.projectId);
+                isFirebaseInitialized = true;
             } catch (error: any) {
                  console.error("CRITICAL: Error getting Firebase app instance:", error.message, error.stack);
                  app = undefined;
+                 isFirebaseInitialized = false;
             }
         }
     }
 }
 
-if (app) {
+if (app && isFirebaseInitialized) {
     try {
         auth = getAuth(app);
         console.log("Firebase Auth service initialized for project:", app.options.projectId);
@@ -75,10 +80,11 @@ if (app) {
     db = undefined;
     if (typeof window !== 'undefined' && essentialConfigPresent) {
       console.error("CRITICAL: Firebase app is NOT initialized (but config was present). Auth and Firestore services will be unavailable.");
+      isFirebaseInitialized = false;
     } else if (typeof window !== 'undefined' && !essentialConfigPresent) {
       console.error("CRITICAL: Firebase app is NOT initialized due to missing critical configuration. Auth and Firestore services will be unavailable.");
+      isFirebaseInitialized = false;
     }
 }
 
-export { app, auth, db };
-
+export { app, auth, db, isFirebaseInitialized };
