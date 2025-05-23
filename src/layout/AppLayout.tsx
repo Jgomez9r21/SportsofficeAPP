@@ -702,7 +702,7 @@ export default function AppLayout({
     user,
     isLoggedIn,
     isLoading,
-    firebaseConfigError, // Consume the new state
+    firebaseConfigError, 
     showLoginDialog,
     showProfileDialog,
     handleOpenChange,
@@ -728,18 +728,35 @@ export default function AppLayout({
 
   if (firebaseConfigError) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/90 p-8 text-center">
-        <AlertTriangle className="h-16 w-16 text-destructive mb-6" />
-        <h1 className="text-2xl font-bold text-destructive mb-4">Error de Configuración Crítico</h1>
-        <p className="text-lg text-foreground mb-2">
-          Sportoffice no puede iniciarse correctamente.
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 p-6 text-center shadow-2xl">
+        <AlertTriangle className="h-20 w-20 text-destructive mb-8 animate-pulse" />
+        <h1 className="text-3xl font-bold text-destructive mb-5">¡Error Crítico de Configuración!</h1>
+        <p className="text-xl text-foreground mb-3">
+          Sportoffice no puede iniciarse.
         </p>
-        <p className="text-md text-muted-foreground mb-6 max-w-lg">
-          Asegúrate de que las variables de entorno de Firebase (como <code className="bg-muted px-1 py-0.5 rounded-sm font-mono text-sm">NEXT_PUBLIC_FIREBASE_API_KEY</code> y <code className="bg-muted px-1 py-0.5 rounded-sm font-mono text-sm">NEXT_PUBLIC_FIREBASE_PROJECT_ID</code>) estén correctamente configuradas en tu archivo <code className="bg-muted px-1 py-0.5 rounded-sm font-mono text-sm">.env.local</code>.
-        </p>
-        <p className="text-md text-muted-foreground">
-          Después de verificar, por favor, **reinicia tu servidor de desarrollo**.
-        </p>
+        <div className="bg-muted/50 p-6 rounded-lg shadow-md max-w-xl text-left space-y-3 text-sm">
+            <p className="text-foreground">
+                Parece que faltan las credenciales de Firebase en tu configuración local. Estas son esenciales para que la aplicación funcione.
+            </p>
+            <p className="text-foreground">
+                <strong>Acción Requerida:</strong>
+            </p>
+            <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+                <li>Asegúrate de tener un archivo llamado <code className="bg-card px-1.5 py-0.5 rounded font-mono text-primary font-medium">.env.local</code> en la raíz de tu proyecto.</li>
+                <li>
+                    Verifica que este archivo contenga tus claves de Firebase, por ejemplo:
+                    <pre className="mt-2 p-2 bg-card rounded text-xs overflow-x-auto">
+                        {`NEXT_PUBLIC_FIREBASE_API_KEY=tu_api_key_aqui\nNEXT_PUBLIC_FIREBASE_PROJECT_ID=tu_project_id_aqui\nNEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=tu_auth_domain_aqui\n# ... (y otras variables necesarias)`}
+                    </pre>
+                </li>
+                <li className="font-semibold text-destructive-foreground bg-destructive/80 p-2 rounded">
+                    <span className="font-bold text-lg">¡MUY IMPORTANTE!</span> Después de crear o modificar el archivo <code className="bg-card px-1.5 py-0.5 rounded font-mono text-primary font-medium text-destructive">.env.local</code>, DEBES REINICIAR COMPLETAMENTE tu servidor de desarrollo para que los cambios se apliquen.
+                </li>
+            </ol>
+        </div>
+         <Button onClick={() => window.location.reload()} className="mt-8 text-lg px-6 py-3">
+            Reintentar Carga (después de corregir)
+        </Button>
       </div>
     );
   }
