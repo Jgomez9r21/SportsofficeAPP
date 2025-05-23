@@ -17,25 +17,23 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Check if essential environment variables are missing
-const missingEnvVars = !firebaseConfig.apiKey || !firebaseConfig.projectId;
+const essentialConfigPresent = firebaseConfig.apiKey && firebaseConfig.projectId;
 
-if (missingEnvVars) {
+if (!essentialConfigPresent) {
     console.error(
         "CRITICAL Firebase Configuration Error:\n" +
-        "One or more Firebase environment variables (e.g., NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_PROJECT_ID) are missing.\n" +
-        "The application WILL NOT connect to Firebase correctly and will likely fail.\n" +
-        "Please create or check your .env.local file in the root of your project and add your Firebase project's configuration."
+        "One or more Firebase environment variables (NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_PROJECT_ID) are missing.\n" +
+        "Firebase WILL NOT be initialized. Ensure your .env.local file is correctly set up."
     );
-    // Firebase will not be initialized if critical config is missing
 } else {
     if (typeof window !== 'undefined') { // Ensure Firebase is initialized only on the client-side
         if (!getApps().length) {
             try {
-                app = initializeApp(firebaseConfig as FirebaseOptions); // Cast because env vars might be undefined initially by TS
-                console.log("Firebase initialized successfully with client config. Project ID:", app.options.projectId);
+                console.log("Attempting to initialize Firebase with config:", firebaseConfig);
+                app = initializeApp(firebaseConfig as FirebaseOptions);
+                console.log("Firebase initialized successfully. Project ID:", app.options.projectId);
             } catch (error: any) {
-                console.error("Error initializing Firebase client SDK:", error.message, error.stack);
+                console.error("CRITICAL: Error initializing Firebase client SDK:", error.message, error.stack);
                 app = undefined;
             }
         } else {
@@ -43,7 +41,7 @@ if (missingEnvVars) {
                 app = getApp();
                 console.log("Firebase client SDK already initialized. Project ID:", app.options.projectId);
             } catch (error: any) {
-                 console.error("Error getting Firebase app instance:", error.message, error.stack);
+                 console.error("CRITICAL: Error getting Firebase app instance:", error.message, error.stack);
                  app = undefined;
             }
         }
@@ -53,31 +51,34 @@ if (missingEnvVars) {
 if (app) {
     try {
         auth = getAuth(app);
-        console.log("Firebase Auth service initialized.");
+        console.log("Firebase Auth service initialized for project:", app.options.projectId);
     } catch (error: any) {
-        console.error("Error initializing Firebase Auth:", error.message, error.stack);
+        console.error("CRITICAL: Error initializing Firebase Auth:", error.message, error.stack);
         auth = undefined;
     }
 
     try {
         db = getFirestore(app);
-        console.log("Firestore service initialized.");
+        console.log("Firestore service initialized for project:", app.options.projectId);
     } catch (error: any) {
         if ((error as any).code === 'unavailable' || ((error as Error).message && (error as Error).message.toLowerCase().includes("service firestore is not available"))) {
             console.warn(
-                `Firestore might not be enabled for project '${firebaseConfig.projectId}'. Please go to the Firebase console and ensure Firestore (Cloud Firestore) is enabled. Error: ${(error as Error).message}`
+                `WARNING: Firestore might not be enabled for project '${firebaseConfig.projectId}'. Please go to the Firebase console and ensure Firestore (Cloud Firestore) is enabled. Error: ${(error as Error).message}`
             );
         } else {
-            console.error("Error initializing Firestore service:", error.message, error.stack);
+            console.error("CRITICAL: Error initializing Firestore service:", error.message, error.stack);
         }
         db = undefined;
     }
 } else {
-    if (typeof window !== 'undefined' && !missingEnvVars) { 
-      console.error("Firebase app is not initialized (but config was present). Auth and Firestore services cannot be created.");
-    } else if (typeof window !== 'undefined' && missingEnvVars) {
-      console.error("Firebase app is not initialized due to missing critical configuration. Auth and Firestore services cannot be created.");
+    auth = undefined;
+    db = undefined;
+    if (typeof window !== 'undefined' && essentialConfigPresent) {
+      console.error("CRITICAL: Firebase app is NOT initialized (but config was present). Auth and Firestore services will be unavailable.");
+    } else if (typeof window !== 'undefined' && !essentialConfigPresent) {
+      console.error("CRITICAL: Firebase app is NOT initialized due to missing critical configuration. Auth and Firestore services will be unavailable.");
     }
 }
 
 export { app, auth, db };
+
