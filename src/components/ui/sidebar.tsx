@@ -1,7 +1,8 @@
+
 "use client"
 
 import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
+import { Slot } from "@radix-ui/react-slot" // Added import
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
@@ -260,29 +261,50 @@ const Sidebar = React.forwardRef<
 Sidebar.displayName = "Sidebar"
 
 const SidebarTrigger = React.forwardRef<
-  React.ElementRef<typeof Button>,
+  HTMLButtonElement,
   React.ComponentProps<typeof Button>
->(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+>(({ className, onClick, asChild = false, children, variant, size, ...props }, ref) => {
+  const { toggleSidebar } = useSidebar();
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    onClick?.(event);
+    toggleSidebar();
+  };
+
+  if (asChild && React.isValidElement(children)) {
+    return (
+      <Slot
+        ref={ref}
+        data-sidebar="trigger"
+        onClick={handleClick}
+        className={className} // Pass className from SidebarTrigger's direct props
+        // Pass other props like variant, size if they were passed to SidebarTrigger
+        // These are now in `props` if they were not standard Button props destructured earlier.
+        // Or they were destructured `variant`, `size` above.
+        {...(variant && { variant })} // Conditionally spread variant if defined
+        {...(size && { size })}       // Conditionally spread size if defined
+        {...props} // Remaining props from SidebarTrigger
+      >
+        {children}
+      </Slot>
+    );
+  }
 
   return (
     <Button
       ref={ref}
       data-sidebar="trigger"
-      variant="ghost"
-      size="icon"
+      variant={variant || "ghost"}
+      size={size || "icon"}
       className={cn("h-7 w-7", className)}
-      onClick={(event) => {
-        onClick?.(event)
-        toggleSidebar()
-      }}
+      onClick={handleClick}
       {...props}
     >
       <PanelLeft />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
-  )
-})
+  );
+});
 SidebarTrigger.displayName = "SidebarTrigger"
 
 const SidebarRail = React.forwardRef<
@@ -761,3 +783,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
