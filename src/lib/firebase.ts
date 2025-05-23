@@ -9,24 +9,25 @@ let authInstance: Auth | undefined = undefined;
 let dbInstance: Firestore | undefined = undefined;
 export let isFirebaseInitialized = false; // Export this flag
 
-const FALLBACK_API_KEY = "AIzaSyBdywe1KJJCIqn7_7og9A1JJPs0eMS8CJA"; // Example
-
+// Directly using the provided Firebase configuration
 const firebaseConfig: FirebaseOptions = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyBHA9JdLWXnua3MTg7h1IXEWfZVL-V9Vww",
+  authDomain: "sportsoofficeapp.firebaseapp.com",
+  projectId: "sportsoofficeapp",
+  storageBucket: "sportsoofficeapp.appspot.com", // Corrected from sportsoofficeapp.firebasestorage.app
+  messagingSenderId: "517537044482",
+  appId: "1:517537044482:web:4753c23d4fecd0da88af1b"
 };
 
-const essentialConfigPresent = firebaseConfig.apiKey && firebaseConfig.apiKey !== FALLBACK_API_KEY && firebaseConfig.projectId;
+console.log("FirebaseLib: Using direct configuration:", firebaseConfig);
+
+const essentialConfigPresent = firebaseConfig.apiKey && firebaseConfig.projectId;
 
 if (!essentialConfigPresent) {
     console.error(
         "CRITICAL Firebase Configuration Error:\n" +
-        "One or more Firebase environment variables (NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_PROJECT_ID) are missing or using fallback values.\n" +
-        "Firebase WILL NOT be initialized. Ensure your .env.local file is correctly set up and you have restarted your development server."
+        "The hardcoded Firebase configuration is missing API Key or Project ID.\n" +
+        "Firebase WILL NOT be initialized."
     );
     isFirebaseInitialized = false;
 } else {
@@ -34,17 +35,17 @@ if (!essentialConfigPresent) {
         if (!getApps().length) {
             try {
                 app = initializeApp(firebaseConfig);
-                console.log("FirebaseLib: Firebase app initialized successfully. Project ID:", app.options.projectId);
+                console.log("FirebaseLib: Firebase app initialized successfully with direct config. Project ID:", app.options.projectId);
             } catch (error: any) {
-                console.error("FirebaseLib: Error initializing Firebase app:", error.message, error.stack);
+                console.error("FirebaseLib: Error initializing Firebase app with direct config:", error.message, error.stack);
                 app = undefined;
             }
         } else {
             try {
                 app = getApp();
-                console.log("FirebaseLib: Firebase app already initialized. Project ID:", app.options.projectId);
+                console.log("FirebaseLib: Firebase app already initialized (direct config). Project ID:", app.options.projectId);
             } catch (error: any) {
-                 console.error("FirebaseLib: Error getting Firebase app instance:", error.message, error.stack);
+                 console.error("FirebaseLib: Error getting Firebase app instance (direct config):", error.message, error.stack);
                  app = undefined;
             }
         }
@@ -72,18 +73,20 @@ if (!essentialConfigPresent) {
                 dbInstance = undefined;
             }
 
-            // Set to true only if all critical services are initialized
             if (app && authInstance && dbInstance) {
                 isFirebaseInitialized = true;
-                console.log("FirebaseLib: All core Firebase services (App, Auth, Firestore) initialized successfully. isFirebaseInitialized is true.");
+                console.log("FirebaseLib: All core Firebase services (App, Auth, Firestore) initialized successfully using direct config. isFirebaseInitialized is true.");
             } else {
                 isFirebaseInitialized = false;
-                console.error("FirebaseLib: One or more core Firebase services (Auth, Firestore) failed to initialize even though the app was created. isFirebaseInitialized is false.");
+                const missingServices = [];
+                if (!authInstance) missingServices.push("Auth");
+                if (!dbInstance) missingServices.push("Firestore");
+                console.error(`FirebaseLib: One or more core Firebase services (${missingServices.join(', ')}) failed to initialize even though the app was created. isFirebaseInitialized is false.`);
             }
 
         } else {
             isFirebaseInitialized = false;
-            console.error("FirebaseLib: Firebase app is NOT initialized. Auth and Firestore services cannot be created. isFirebaseInitialized is false.");
+            console.error("FirebaseLib: Firebase app is NOT initialized using direct config. Auth and Firestore services cannot be created. isFirebaseInitialized is false.");
         }
     }
 }
