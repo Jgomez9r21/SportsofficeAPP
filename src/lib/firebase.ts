@@ -11,12 +11,14 @@ export let isFirebaseInitialized = false; // Export this flag
 
 // Directly using the provided Firebase configuration
 const firebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyBHA9JdLWXnua3MTg7h1IXEWfZVL-V9Vww",
-  authDomain: "sportsoofficeapp.firebaseapp.com",
-  projectId: "sportsoofficeapp",
-  storageBucket: "sportsoofficeapp.appspot.com", // Corrected from sportsoofficeapp.firebasestorage.app
-  messagingSenderId: "517537044482",
-  appId: "1:517537044482:web:4753c23d4fecd0da88af1b"
+    
+        apiKey: "AIzaSyBHA9JdLWXnua3MTg7h1IXEWfZVL-V9Vww",
+        authDomain: "sportsoofficeapp.firebaseapp.com",
+        projectId: "sportsoofficeapp",
+        storageBucket: "sportsoofficeapp.firebasestorage.app",
+        messagingSenderId: "517537044482",
+        appId: "1:517537044482:web:eb5588757430de3788af1b"
+    
 };
 
 console.log("FirebaseLib: Using direct configuration:", firebaseConfig);
