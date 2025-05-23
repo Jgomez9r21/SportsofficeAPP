@@ -1,0 +1,111 @@
+import type { Space, Reservation, TimeSlot } from './types';
+
+const commonSlots: TimeSlot[] = [
+  { id: 'slot-0900', startTime: '09:00', endTime: '10:00', isBooked: false },
+  { id: 'slot-1000', startTime: '10:00', endTime: '11:00', isBooked: false },
+  { id: 'slot-1100', startTime: '11:00', endTime: '12:00', isBooked: true },
+  { id: 'slot-1200', startTime: '12:00', endTime: '13:00', isBooked: false },
+  { id: 'slot-1300', startTime: '13:00', endTime: '14:00', isBooked: false },
+  { id: 'slot-1400', startTime: '14:00', endTime: '15:00', isBooked: true },
+  { id: 'slot-1500', startTime: '15:00', endTime: '16:00', isBooked: false },
+  { id: 'slot-1600', startTime: '16:00', endTime: '17:00', isBooked: false },
+  { id: 'slot-1700', startTime: '17:00', endTime: '18:00', isBooked: false },
+];
+
+export const mockSpaces: Space[] = [
+  {
+    id: 'space-1',
+    name: 'Alpha Soccer Field',
+    type: 'sports_field',
+    category: 'Soccer',
+    imageUrl: 'https://placehold.co/600x400.png',
+    imageHint: 'soccer field',
+    capacity: 22,
+    description: 'Full-size synthetic turf soccer field with lighting for night games.',
+    amenities: ['Floodlights', 'Changing Rooms', 'Parking'],
+    hourlyRate: 75,
+    location: '123 Champion Ave',
+    slots: JSON.parse(JSON.stringify(commonSlots)), // Deep copy
+  },
+  {
+    id: 'space-2',
+    name: 'Downtown Hoops Court',
+    type: 'sports_field',
+    category: 'Basketball',
+    imageUrl: 'https://placehold.co/600x400.png',
+    imageHint: 'basketball court',
+    capacity: 10,
+    description: 'Indoor basketball court with polished wooden floors.',
+    amenities: ['Scoreboard', 'Lockers', 'Water Fountain'],
+    hourlyRate: 50,
+    location: '456 Net St',
+    slots: JSON.parse(JSON.stringify(commonSlots)),
+  },
+  {
+    id: 'space-3',
+    name: 'Quiet Focus Desk #101',
+    type: 'workspace',
+    category: 'Hot Desk',
+    imageUrl: 'https://placehold.co/600x400.png',
+    imageHint: 'modern desk',
+    capacity: 1,
+    description: 'A comfortable hot desk in a quiet zone, perfect for focused work.',
+    amenities: ['High-speed WiFi', 'Ergonomic Chair', 'Power Outlet'],
+    hourlyRate: 10,
+    location: '789 Productive Rd, Suite 200',
+    slots: JSON.parse(JSON.stringify(commonSlots)),
+  },
+  {
+    id: 'space-4',
+    name: 'Collaborate Meeting Room',
+    type: 'workspace',
+    category: 'Meeting Room',
+    imageUrl: 'https://placehold.co/600x400.png',
+    imageHint: 'meeting room',
+    capacity: 8,
+    description: 'Spacious meeting room equipped with a whiteboard and projector.',
+    amenities: ['Projector', 'Whiteboard', 'Conference Phone', 'Coffee Maker'],
+    hourlyRate: 40,
+    location: '789 Productive Rd, Suite 200',
+    slots: JSON.parse(JSON.stringify(commonSlots)),
+  },
+];
+
+export const mockReservations: Reservation[] = [
+  {
+    id: 'res-1',
+    userId: 'user-123',
+    spaceId: 'space-1',
+    spaceName: 'Alpha Soccer Field',
+    spaceCategory: 'Soccer',
+    date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days from now
+    startTime: '10:00',
+    endTime: '11:00',
+    status: 'upcoming',
+    bookedAt: new Date().toISOString(),
+  },
+  {
+    id: 'res-2',
+    userId: 'user-123',
+    spaceId: 'space-3',
+    spaceName: 'Quiet Focus Desk #101',
+    spaceCategory: 'Hot Desk',
+    date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 5 days from now
+    startTime: '14:00',
+    endTime: '15:00',
+    status: 'upcoming',
+    bookedAt: new Date().toISOString(),
+  },
+  {
+    id: 'res-3',
+    userId: 'user-123',
+    spaceId: 'space-2',
+    spaceName: 'Downtown Hoops Court',
+    spaceCategory: 'Basketball',
+    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days ago
+    startTime: '16:00',
+    endTime: '17:00',
+    status: 'completed',
+    bookedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
