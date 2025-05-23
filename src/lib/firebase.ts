@@ -5,11 +5,11 @@ import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore"; // Import Firestore
 
 let app: FirebaseApp | undefined = undefined;
-let authInstance: Auth | undefined = undefined; // Renamed to avoid conflict if 'auth' is used elsewhere
-let dbInstance: Firestore | undefined = undefined; // Renamed
+let authInstance: Auth | undefined = undefined;
+let dbInstance: Firestore | undefined = undefined;
 export let isFirebaseInitialized = false; // Export this flag
 
-const FALLBACK_API_KEY = "AIzaSyBdywe1KJJCIqn7_7og9A1JJPs0eMS8CJA"; // Example, replace if you have a real fallback for some reason
+const FALLBACK_API_KEY = "AIzaSyBdywe1KJJCIqn7_7og9A1JJPs0eMS8CJA"; // Example
 
 const firebaseConfig: FirebaseOptions = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -30,7 +30,7 @@ if (!essentialConfigPresent) {
     );
     isFirebaseInitialized = false;
 } else {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') { // Ensure this runs only on the client
         if (!getApps().length) {
             try {
                 app = initializeApp(firebaseConfig);
@@ -72,18 +72,18 @@ if (!essentialConfigPresent) {
                 dbInstance = undefined;
             }
 
-            // Only set to true if all critical services are initialized
+            // Set to true only if all critical services are initialized
             if (app && authInstance && dbInstance) {
                 isFirebaseInitialized = true;
-                console.log("FirebaseLib: All core Firebase services (App, Auth, Firestore) initialized successfully.");
+                console.log("FirebaseLib: All core Firebase services (App, Auth, Firestore) initialized successfully. isFirebaseInitialized is true.");
             } else {
                 isFirebaseInitialized = false;
-                console.error("FirebaseLib: One or more core Firebase services (Auth, Firestore) failed to initialize even though the app was created.");
+                console.error("FirebaseLib: One or more core Firebase services (Auth, Firestore) failed to initialize even though the app was created. isFirebaseInitialized is false.");
             }
 
         } else {
             isFirebaseInitialized = false;
-            console.error("FirebaseLib: Firebase app is NOT initialized. Auth and Firestore services cannot be created.");
+            console.error("FirebaseLib: Firebase app is NOT initialized. Auth and Firestore services cannot be created. isFirebaseInitialized is false.");
         }
     }
 }
