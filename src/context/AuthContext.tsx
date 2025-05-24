@@ -18,7 +18,7 @@ import {
   type User as FirebaseUser,
   onAuthStateChanged
 } from 'firebase/auth';
-import { auth as firebaseAuthInstance, db as firestoreService, app as firebaseApp, isFirebaseInitialized } from '@/lib/firebase';
+import { auth as firebaseAuthInstance, db, app as firebaseApp, isFirebaseInitialized } from '@/lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, Timestamp } from "firebase/firestore";
 
 interface User {
@@ -31,7 +31,7 @@ interface User {
   email: string;
   phone?: string;
   country?: string;
-  dob?: Date | string | null; // Keep allowing string for flexibility if data source provides it
+  dob?: Date | string | null;
   isPhoneVerified?: boolean;
   profileType?: string;
   gender?: string;
@@ -114,7 +114,7 @@ interface AuthContextType {
   setIsVerificationSent: (sent: boolean) => void;
   resetPhoneVerification: () => void;
   handleForgotPasswordSubmit: (data: ForgotPasswordValues, resetForm: UseFormReset<ForgotPasswordValues>) => Promise<void>;
-  openLoginDialog: () => void; // Kept for now, can be removed if AppLayout dialogs are fully page-based.
+  openLoginDialog: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -146,11 +146,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     console.log("AuthContext: Mount complete. Starting auth check process.");
-    setIsLoading(true);
-    setFirebaseConfigError(!isFirebaseInitialized); // Set based on imported flag
+    setFirebaseConfigError(false); // Assume no error initially
 
     if (!isFirebaseInitialized) {
       console.error("AuthContext: Firebase is NOT initialized (checked via isFirebaseInitialized from lib/firebase). Aborting auth check.");
+      setFirebaseConfigError(true);
       setIsLoading(false);
       return () => { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); };
     }
@@ -163,11 +163,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     console.log("AuthContext: Firebase is initialized and Auth instance exists. Setting up onAuthStateChanged listener.");
+    setIsLoading(true); // Set loading to true before starting the auth check
 
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     loadingTimeoutRef.current = setTimeout(() => {
       console.warn("AuthContext: Auth check timed out after 15 seconds. Forcing isLoading to false.");
-      if (isLoading) setIsLoading(false); // Ensure isLoading is true before setting to false
+      if (isLoading) { // Only if still loading
+        setIsLoading(false);
+        toast({ title: "Tiempo de Espera Excedido", description: "La verificación de sesión tardó demasiado. Intenta recargar.", variant: "destructive" });
+      }
       loadingTimeoutRef.current = null;
     }, 15000);
 
@@ -175,12 +179,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("AuthContext: onAuthStateChanged event received. User UID:", firebaseUser?.uid || "No user");
       try {
         if (firebaseUser) {
-          if (firestoreService) { // Check if Firestore service is available
+          // Check if Firestore service (db) is available
+          if (db) {
             try {
-              const userDocRef = doc(firestoreService, "users", firebaseUser.uid);
+              const userDocRef = doc(db, "users", firebaseUser.uid);
               const userDoc = await getDoc(userDocRef);
               if (userDoc.exists()) {
-                const userData = userDoc.data() as Omit<User, 'id' | 'initials' | 'name'>; // Firestore data
+                const userData = userDoc.data() as Omit<User, 'id' | 'initials' | 'name'>;
                 const combinedUser: User = {
                   id: firebaseUser.uid,
                   name: `${userData.firstName || firebaseUser.displayName?.split(' ')[0] || ''} ${userData.lastName || firebaseUser.displayName?.split(' ').slice(1).join(' ') || ''}`.trim() || "Usuario",
@@ -188,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   lastName: userData.lastName || firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
                   initials: ((userData.firstName?.[0] || '') + (userData.lastName?.[0] || '')).toUpperCase() || "U",
                   avatarUrl: userData.avatarUrl || firebaseUser.photoURL || defaultAvatar,
-                  email: firebaseUser.email || userData.email || '', // Prefer Firebase Auth email
+                  email: firebaseUser.email || userData.email || '',
                   phone: userData.phone || firebaseUser.phoneNumber || undefined,
                   country: userData.country || undefined,
                   dob: userData.dob ? (userData.dob instanceof Timestamp ? userData.dob.toDate() : new Date(userData.dob as string) ) : undefined,
@@ -214,7 +219,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             } catch (firestoreError: any) {
               console.error("AuthContext: Error fetching user document from Firestore for UID:", firebaseUser.uid, firestoreError);
-              toast({ title: "Error al Cargar Perfil", description: "No se pudo cargar tu información de perfil. Usando datos básicos.", variant: "destructive" });
+              let firestoreErrorTitle = "Error al Cargar Perfil";
+              let firestoreErrorMessage = "No se pudo cargar tu información de perfil. Usando datos básicos.";
+              if (firestoreError.code === 'unavailable') {
+                firestoreErrorTitle = "Problema de Conexión";
+                firestoreErrorMessage = "No se pudo conectar a la base de datos (posiblemente offline). Usando datos básicos.";
+              }
+              toast({ title: firestoreErrorTitle, description: firestoreErrorMessage, variant: "destructive" });
               const firstName = firebaseUser.displayName?.split(' ')[0] || firebaseUser.email?.split('@')[0] || "Usuario";
               const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || "";
               const initials = ((firstName[0] || "") + (lastName[0] || (firebaseUser.email?.[0] || ""))).toUpperCase() || "U";
@@ -223,7 +234,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setIsLoggedIn(true);
             }
           } else {
-            console.warn("AuthContext: Firestore service not available. Using basic profile from Firebase Auth data.");
+            // Firestore service (db) is not available. This is a critical setup issue.
+            console.error("AuthContext: Firestore service (db) is not available from lib/firebase. Cannot fetch user profile.");
+            toast({ title: "Error Crítico de Configuración", description: "El servicio de base de datos (Firestore) no está inicializado. Usando datos básicos.", variant: "destructive" });
+            setFirebaseConfigError(true); // Indicate a config problem
             const firstName = firebaseUser.displayName?.split(' ')[0] || firebaseUser.email?.split('@')[0] || "Usuario";
             const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || "";
             const initials = ((firstName[0] || "") + (lastName[0] || (firebaseUser.email?.[0] || ""))).toUpperCase() || "U";
@@ -238,9 +252,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (authProcessingError: any) {
         console.error("AuthContext: Error processing Firebase user state in onAuthStateChanged:", authProcessingError.message, authProcessingError.stack);
+        toast({ title: "Error de Autenticación", description: "Ocurrió un problema al verificar tu sesión.", variant: "destructive" });
         setUser(null);
         setIsLoggedIn(false);
-        toast({ title: "Error de Autenticación", description: "Ocurrió un problema al verificar tu sesión.", variant: "destructive" });
       } finally {
         console.log("AuthContext: onAuthStateChanged processing finished. Setting isLoading to false.");
         setIsLoading(false);
@@ -272,7 +286,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
         const userCredential = await signInWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
         console.log("AuthContext Login: Successful Firebase sign-in for", userCredential.user.email);
-        // onAuthStateChanged will handle setting user and isLoggedIn, and then isLoading will be false
         return userCredential.user;
     } catch (error: any) {
         console.error("Error during login:", error);
@@ -281,14 +294,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         else if (error.code === 'auth/invalid-email') { errorMessage = "El formato del correo electrónico no es válido."; }
         else if (error.code === 'auth/network-request-failed') { errorTitle = "Error de Red"; errorMessage = "Error de red. Verifica tu conexión e inténtalo de nuevo."; }
         setLoginError(errorMessage); toast({ title: errorTitle, description: errorMessage, variant: "destructive" });
-        setIsLoading(false);
+        setIsLoading(false); // Ensure loading is false on error
         throw error;
     }
+    // No finally setIsLoading(false) here, as onAuthStateChanged will handle it upon successful login.
   }, [toast]);
 
    const signup = useCallback(async (details: SignupValues): Promise<FirebaseUser | null> => {
     setIsLoading(true); setLoginError(null);
-    if (!firebaseAuthInstance || !firestoreService) {
+    if (!firebaseAuthInstance || !db) { // Check db as well for Firestore operations
       const serviceMissing = !firebaseAuthInstance ? "Autenticación" : "Base de datos";
       setLoginError(`${serviceMissing} no disponible.`); toast({ title: `Error de ${serviceMissing}`, description: "Servicio no disponible.", variant: "destructive" }); setIsLoading(false);
       throw new Error(`${serviceMissing} no disponible.`);
@@ -304,8 +318,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         documentType: details.documentType || "", documentNumber: details.documentNumber || "", createdAt: serverTimestamp(),
         avatarUrl: defaultAvatar
       };
-      await setDoc(doc(firestoreService, "users", firebaseUser.uid), newUserForFirestore);
-      // onAuthStateChanged will handle setting the user state
+      await setDoc(doc(db, "users", firebaseUser.uid), newUserForFirestore);
       return firebaseUser;
     } catch (error: any) {
       console.error("Error during signup:", error);
@@ -326,18 +339,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
         await firebaseAuthInstance.signOut();
         toast({ title: "Sesión cerrada" });
-        // onAuthStateChanged will set user to null, isLoggedIn to false, and eventually isLoading to false.
     } catch (error) {
         console.error("Error signing out:", error); toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive"});
-        setIsLoading(false);
+        setIsLoading(false); // Ensure loading is false if sign out fails
     }
+    // onAuthStateChanged will eventually set user to null and isLoading to false.
   }, [toast]);
 
   const handleLogout = useCallback(() => { logout(); }, [logout]);
 
   const updateUser = useCallback(async (data: UpdateProfileData) => {
       setIsLoading(true);
-      if (!user || !firebaseAuthInstance?.currentUser || !firestoreService) {
+      if (!user || !firebaseAuthInstance?.currentUser || !db) {
             const missingService = !firebaseAuthInstance?.currentUser ? "Usuario no autenticado" : "Base de datos no disponible";
             toast({ title: "Error", description: `No se pudo actualizar el perfil. ${missingService}.`, variant: "destructive", }); setIsLoading(false); return;
       }
@@ -369,7 +382,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
           if (Object.keys(firestoreUpdatePayload).length > 0) {
-            await updateDoc(doc(firestoreService, "users", firebaseAuthInstance.currentUser.uid), firestoreUpdatePayload);
+            await updateDoc(doc(db, "users", firebaseAuthInstance.currentUser.uid), firestoreUpdatePayload);
           }
           if ((data.firstName || data.lastName) || (newAvatarUrl !== user.avatarUrl && data.avatarFile) ) {
               await updateFirebaseProfile(firebaseAuthInstance.currentUser, {
@@ -417,9 +430,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
            const credential = await confirmationResult.confirm(code);
            const verifiedFirebaseUser = credential.user as FirebaseUser; 
            
-           if (user && firebaseAuthInstance?.currentUser && firestoreService) {
+           if (user && firebaseAuthInstance?.currentUser && db) {
                 await updateFirebaseProfile(firebaseAuthInstance.currentUser, { phoneNumber: verifiedFirebaseUser.phoneNumber });
-                await updateDoc(doc(firestoreService, "users", user.id), { phone: verifiedFirebaseUser.phoneNumber, isPhoneVerified: true });
+                await updateDoc(doc(db, "users", user.id), { phone: verifiedFirebaseUser.phoneNumber, isPhoneVerified: true });
                 setUser(prev => prev ? {...prev, phone: verifiedFirebaseUser.phoneNumber || prev.phone, isPhoneVerified: true} : null);
            }
            setConfirmationResult(null); setIsVerificationSent(false);
@@ -452,9 +465,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [toast]);
 
   const openLoginDialog = () => {
-    // Placeholder, as auth is now page-based.
-    // Could navigate to '/login' if a direct action is needed here.
-    console.log("AuthContext: openLoginDialog called. Navigating to /login is typically handled by UI components.");
+    console.log("AuthContext: openLoginDialog called. User should be navigated to /login page.");
   };
 
   const value: AuthContextType = {
@@ -472,3 +483,5 @@ export const useAuth = (): AuthContextType => {
   if (context === undefined) { throw new Error('useAuth must be used within an AuthProvider'); }
   return context;
 };
+
+    
