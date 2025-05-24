@@ -1,7 +1,7 @@
 
 "use client";
 /**
- * Nombre del método: onSubmit
+ * Nombre del método: loginform
  * version 1.0
  * Propósito:
  * Manejar la lógica de inicio de sesión cuando el usuario envía el formulario.
