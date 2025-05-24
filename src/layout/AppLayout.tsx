@@ -31,7 +31,7 @@ import {
 } from "../components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Toaster } from "@/components/ui/toaster";
-import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Menu, LogIn, Building, Waves, LayoutGrid, FileText, ShieldCheck, X as XIcon, AlertTriangle, PackageSearch, WifiOff } from "lucide-react"; // Added WifiOff
+import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Menu, LogIn, Building, Waves, LayoutGrid, FileText, ShieldCheck, X as XIcon, AlertTriangle, PackageSearch, WifiOff } from "lucide-react"; 
 
 import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
@@ -64,7 +64,6 @@ export default function AppLayout({
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        {/* Text removed here for loading application */}
         <Toaster />
       </div>
     );
@@ -113,7 +112,6 @@ export default function AppLayout({
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        {/* "Cargando..." text removed here */}
         <Toaster />
       </div>
     );
@@ -171,7 +169,7 @@ export default function AppLayout({
                 ) : (
                    <Button
                      asChild
-                     variant="accent" // This variant might need definition in globals.css or tailwind config if not standard ShadCN
+                     variant="accent" 
                      className="w-full justify-start text-sm h-10 px-3 py-2 bg-accent text-accent-foreground hover:bg-accent/90 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:justify-center"
                    >
                      <Link href="/login">
@@ -268,14 +266,14 @@ export default function AppLayout({
                </header>
 
               {/* Content with optional Firestore offline banner */}
-              <div className="flex-1 overflow-auto flex flex-col">
+              <div className={cn("flex-1 overflow-auto flex flex-col", isFirestoreOffline && "opacity-75 pointer-events-none")}>
                 {isFirestoreOffline && (
-                  <div className="sticky top-0 z-20 bg-destructive/90 text-destructive-foreground p-2 text-center text-sm font-medium flex items-center justify-center">
-                    <WifiOff className="h-4 w-4 mr-2" />
-                    Estás desconectado o la base de datos no está disponible. Algunas funciones pueden estar limitadas.
+                  <div className="sticky top-0 z-50 bg-destructive/95 text-destructive-foreground p-2.5 text-center text-sm font-semibold flex items-center justify-center shadow-lg">
+                    <WifiOff className="h-5 w-5 mr-2.5" />
+                    <span>Estás desconectado o la base de datos no está disponible. Algunas funciones pueden estar limitadas.</span>
                   </div>
                 )}
-                <div className="flex-grow">
+                <div className={cn("flex-grow", isFirestoreOffline && "blur-sm")}>
                   {children}
                 </div>
                 <Footer />
