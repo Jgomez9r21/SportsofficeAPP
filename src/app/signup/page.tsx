@@ -85,7 +85,7 @@ export default function SignupPage() {
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
-  const [recaptchaKey, setRecaptchaKey] = useState(0); // Key to force re-mount reCAPTCHA container
+  const [recaptchaKey, setRecaptchaKey] = useState(0);
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -102,20 +102,16 @@ export default function SignupPage() {
     }
     const authInstance = getAuth(firebaseApp);
     const isValidPhone = phoneValidation.safeParse(phoneNumberForEffect).success;
-
     const shouldRenderRecaptcha = signupStep === 2 && phoneNumberForEffect && isValidPhone && !authIsLoading && recaptchaContainerRef.current;
 
     if (shouldRenderRecaptcha) {
       if (!recaptchaVerifierRef.current) {
         console.log("SignupPage: Initializing new reCAPTCHA verifier for key:", recaptchaKey);
         try {
-          // Ensure the container is empty before rendering.
-          // This is a strong measure if clear() is not enough.
           if (recaptchaContainerRef.current) {
-            recaptchaContainerRef.current.innerHTML = '';
+            recaptchaContainerRef.current.innerHTML = ''; // Ensure container is empty
           }
-
-          const verifier = new RecaptchaVerifier(authInstance, recaptchaContainerRef.current, {
+          const verifier = new RecaptchaVerifier(authInstance, recaptchaContainerRef.current!, { // Added non-null assertion
             'size': 'invisible',
             'callback': (response: any) => {
               console.log("SignupPage: reCAPTCHA solved via callback:", response);
@@ -126,8 +122,8 @@ export default function SignupPage() {
                 recaptchaVerifierRef.current.clear();
                 recaptchaVerifierRef.current = null;
               }
-              setRecaptchaKey(prevKey => prevKey + 1); // Force re-mount of the reCAPTCHA div
-              resetPhoneVerification(); // This will trigger a re-render
+              setRecaptchaKey(prevKey => prevKey + 1);
+              resetPhoneVerification();
             }
           });
           verifier.render().then(widgetId => {
@@ -146,7 +142,7 @@ export default function SignupPage() {
       }
     } else {
       if (recaptchaVerifierRef.current) {
-        console.log("SignupPage: Conditions for reCAPTCHA not met. Clearing existing verifier.");
+        console.log("SignupPage: Conditions for reCAPTCHA not met or cleaning up. Clearing existing verifier.");
         recaptchaVerifierRef.current.clear();
         recaptchaVerifierRef.current = null;
       }
@@ -159,7 +155,8 @@ export default function SignupPage() {
         recaptchaVerifierRef.current = null;
       }
     };
-  }, [signupStep, phoneNumberForEffect, authIsLoading, resetPhoneVerification, toast, recaptchaKey]);
+  // Added authInstance to dependencies as it's used inside. Consider if firebaseApp is sufficient.
+  }, [signupStep, phoneNumberForEffect, authIsLoading, resetPhoneVerification, toast, recaptchaKey, firebaseApp]);
 
 
   const handleNextStep = async () => {
@@ -246,10 +243,9 @@ export default function SignupPage() {
                     name="dob"
                     render={({ field }) => {
                       const dateValue = field.value;
-                      let displayDate: Date | undefined = undefined;
-                      if (isValidDate(dateValue)) {
-                        displayDate = dateValue;
-                      }
+                      const isDateValid = dateValue instanceof Date && !isNaN(dateValue.getTime());
+                      let displayDate: Date | undefined = isDateValid ? dateValue : undefined;
+                      
                       return (
                         <FormItem className="flex flex-col">
                           <FormLabel>Fecha de Nacimiento</FormLabel>
@@ -263,7 +259,7 @@ export default function SignupPage() {
                                     !displayDate && "text-muted-foreground"
                                   )}
                                 >
-                                  <span className="flex items-center"> {/* Ensure single child for Button if asChild is used by PopoverTrigger */}
+                                  <span className="flex items-center">
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {displayDate ? (
                                       format(displayDate, "PPP", { locale: es })
@@ -304,7 +300,7 @@ export default function SignupPage() {
                   <FormField control={form.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>Correo</FormLabel> <FormControl><Input type="email" placeholder="tu@correo.com" {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
                   <FormField control={form.control} name="password" render={({ field }) => ( <FormItem> <FormLabel>Contraseña</FormLabel> <FormControl><div className="relative"><Input type={showPassword ? "text" : "password"} placeholder="Crea una contraseña (mín. 6 caract.)" {...field} /><Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={()=>setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div></FormControl> <FormMessage /> </FormItem> )}/>
                   <FormField control={form.control} name="confirmPassword" render={({ field }) => ( <FormItem> <FormLabel>Confirmar Contraseña</FormLabel> <FormControl><div className="relative"><Input type={showConfirmPassword ? "text" : "password"} placeholder="Confirma tu contraseña" {...field} /><Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={()=>setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div></FormControl> <FormMessage /> </FormItem> )}/>
-                  {form.getValues("phone") && !isVerificationSent && !(user?.isPhoneVerified && form.getValues("phone") === user?.phone) && ( <Button type="button" variant="outline" className="w-full mt-2" onClick={handlePhoneSendVerification} disabled={authIsLoading || isVerifyingCode}>Enviar código SMS</Button> )}
+                  
                   {isVerificationSent && ( <div className="mt-2 space-y-2 p-3 border rounded-md bg-muted/50"> <Label htmlFor="signup-verification-code">Ingresa el código SMS</Label> <div className="flex items-center gap-2"> <Input id="signup-verification-code" type="text" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} placeholder="123456" maxLength={6} className="flex-1"/> <Button type="button" onClick={handlePhoneVerifyCode} disabled={isVerifyingCode || verificationCode.length !== 6 || authIsLoading}>{isVerifyingCode ? "Verificando..." : "Confirmar"}</Button> </div> {phoneVerificationError && <p className="text-sm font-medium text-destructive mt-1">{phoneVerificationError}</p>} </div> )}
                 </div>
               )}
