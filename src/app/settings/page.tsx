@@ -125,13 +125,55 @@ function ProfileForm() {
 
   const currentPhoneNumber = form.watch("phone");
   const isPhoneValid = phoneValidation.safeParse(currentPhoneNumber).success;
-  const isPhoneDifferent = currentPhoneNumber !== originalPhoneNumber && !!currentPhoneNumber;
-  const isPhoneVerified = user?.isPhoneVerified ?? false;
+  const isPhoneDifferent = currentPhoneNumber !== originalPhoneNumber && (currentPhoneNumber !== undefined && currentPhoneNumber !== null); // Added more checks
+  const isUserPhoneVerified = user?.isPhoneVerified ?? false;
 
-  const canSendVerification = isPhoneValid &&
+
+  const phoneRequiresVerification = isPhoneDifferent && 
+                                  !!currentPhoneNumber && 
+                                  !(isUserPhoneVerified && currentPhoneNumber === user?.phone);
+
+
+  // Diagnostic log for button disable state
+  useEffect(() => {
+    const conditionUserExists = !user;
+    const conditionFormNotDirty = !form.formState.isDirty;
+    const conditionSubmitting = form.formState.isSubmitting;
+    const conditionAuthLoading = authLoading;
+    const conditionPhoneRequiresVerification = phoneRequiresVerification;
+
+    console.log("ProfileForm Button Disabled Check:", {
+        conditionUserExists,
+        conditionFormNotDirty,
+        conditionSubmitting,
+        conditionAuthLoading,
+        conditionPhoneRequiresVerification,
+        isSubmitDisabled: conditionUserExists || conditionFormNotDirty || conditionSubmitting || conditionAuthLoading || conditionPhoneRequiresVerification,
+        userLoaded: !!user,
+        formIsDirty: form.formState.isDirty,
+        isSubmitting: form.formState.isSubmitting,
+        isAuthLoading: authLoading,
+        isPhoneDifferent,
+        currentPhoneNumber: `"${currentPhoneNumber}"`, // Log with quotes to see empty strings
+        isUserPhoneVerified,
+        userPhone: `"${user?.phone}"`,
+    });
+  }, [
+      user, 
+      form.formState.isDirty, 
+      form.formState.isSubmitting, 
+      authLoading, 
+      phoneRequiresVerification, 
+      isPhoneDifferent, 
+      currentPhoneNumber, 
+      isUserPhoneVerified
+    ]);
+
+
+   const canSendVerification = isPhoneValid &&
                               currentPhoneNumber &&
                               currentPhoneNumber.length > 0 &&
-                              (isPhoneDifferent || !isPhoneVerified);
+                              (isPhoneDifferent || !isUserPhoneVerified);
 
 
    useEffect(() => {
@@ -194,7 +236,8 @@ function ProfileForm() {
       setAvatarPreview(user.avatarUrl || null);
       setOriginalPhoneNumber(initialPhone);
 
-      if (initialPhone === currentPhoneNumber && isPhoneVerified) {
+      // If the current phone number in form matches the user's already verified phone, reset verification UI
+      if (initialPhone === currentPhoneNumber && isUserPhoneVerified) {
          resetPhoneVerification();
          setVerificationCode("");
       }
@@ -206,7 +249,7 @@ function ProfileForm() {
       setVerificationCode("");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, form.reset, isPhoneVerified]);
+  }, [user, form.reset, isUserPhoneVerified]); // Removed currentPhoneNumber to avoid loops, let originalPhoneNumber be source of truth for comparison
 
 
   const handleSendVerification = useCallback(async () => {
@@ -250,13 +293,14 @@ function ProfileForm() {
         toast({ title: "Error", description: "Ingresa un código de 6 dígitos.", variant: "destructive" });
         return;
     }
-    await verifyCode(verificationCode);
-    if(!phoneVerificationError) {
+    const success = await verifyCode(verificationCode); // Assuming verifyCode now returns a boolean or similar
+    if(success) {
         setVerificationCode("");
-        setOriginalPhoneNumber(currentPhoneNumber);
-        form.setValue('phone', currentPhoneNumber || '');
+        setOriginalPhoneNumber(currentPhoneNumber); // Update original phone number after successful verification
+        form.setValue('phone', currentPhoneNumber || '', { shouldDirty: true, shouldValidate: true }); // Ensure form knows phone is 'dirty' if it changed for verification
+        toast({ title: "Teléfono Verificado", description: "Tu número ha sido verificado." });
     }
-  }, [verificationCode, verifyCode, toast, phoneVerificationError, currentPhoneNumber, form]);
+  }, [verificationCode, verifyCode, toast, currentPhoneNumber, form]);
 
 
   async function onSubmit(data: ProfileFormValues) {
@@ -280,8 +324,9 @@ function ProfileForm() {
      if (data.phone && data.phone !== originalPhoneNumber && latestFirebaseUser && latestFirebaseUser.phoneNumber === data.phone) {
         isNewPhoneVerifiedByFirebase = true;
      }
-
-     if (data.phone && data.phone !== originalPhoneNumber && !isNewPhoneVerifiedByFirebase && !(user?.isPhoneVerified && data.phone === user?.phone) ) {
+     
+     // Check if phone requires verification and hasn't been verified yet for this update attempt
+     if (phoneRequiresVerification && !isNewPhoneVerifiedByFirebase && !(isUserPhoneVerified && data.phone === user?.phone) ) {
          toast({
              title: "Verificación Requerida",
              description: "Debes verificar tu nuevo número de teléfono antes de guardar los cambios.",
@@ -302,15 +347,17 @@ function ProfileForm() {
 
      try {
        await updateUser(updatePayload);
-       form.reset({
-         ...form.getValues(),
-         phone: data.phone || '',
+       form.reset({ // Reset form to new values, making it not dirty
+         ...data,
+         phone: data.phone || '', // Ensure phone is what was submitted
          avatarFile: null, 
        });
         if (fileInputRef.current) {
            fileInputRef.current.value = ''; 
         }
-       setOriginalPhoneNumber(data.phone || ''); 
+       setOriginalPhoneNumber(data.phone || ''); // Update original phone after successful save
+       toast({ title: "Perfil Actualizado", description: "Tus datos han sido guardados." });
+
      } catch (error) {
        console.error("Failed to update profile:", error);
        toast({
@@ -324,12 +371,12 @@ function ProfileForm() {
  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     form.setValue("avatarFile", null, { shouldValidate: true });
-    setAvatarPreview(user?.avatarUrl || null);
+    setAvatarPreview(user?.avatarUrl || null); // Reset to current user avatar if selection is cancelled or invalid
 
     if (file) {
        const validationResult = fileSchema.safeParse(file);
        if (validationResult.success && validationResult.data) {
-         form.setValue("avatarFile", validationResult.data, { shouldValidate: true });
+         form.setValue("avatarFile", validationResult.data, { shouldValidate: true, shouldDirty: true });
          const reader = new FileReader();
          reader.onloadend = () => {
            setAvatarPreview(reader.result as string);
@@ -361,8 +408,7 @@ function ProfileForm() {
                            !form.formState.isDirty ||
                            form.formState.isSubmitting ||
                            authLoading ||
-                           (isPhoneDifferent && !!currentPhoneNumber && !(isPhoneVerified && currentPhoneNumber === user?.phone));
-
+                           phoneRequiresVerification; // Simplified this based on already calculated phoneRequiresVerification
 
   return (
     <Form {...form}>
@@ -385,7 +431,7 @@ function ProfileForm() {
             <FormField
               control={form.control}
               name="avatarFile"
-              render={({ field: { ref, name, onBlur, onChange, value, ...fieldProps } }) => (
+              render={({ field: { ref, name, onBlur, onChange, value, ...fieldProps } }) => ( // value is intentionally not passed to Input
                 <FormItem className="sr-only">
                   <FormLabel htmlFor="avatar-upload">Cambiar foto de perfil</FormLabel>
                   <FormControl>
@@ -396,7 +442,7 @@ function ProfileForm() {
                        ref={fileInputRef}
                        name={name}
                        onBlur={onBlur}
-                       onChange={handleFileChange}
+                       onChange={handleFileChange} // Use custom handler
                        className="hidden"
                        {...fieldProps}
                     />
@@ -450,7 +496,7 @@ function ProfileForm() {
                      <FormControl className="flex-1 min-w-[150px]">
                         <Input type="tel" placeholder="+573001234567" {...field} />
                      </FormControl>
-                     {canSendVerification && !isVerificationSent && !(isPhoneVerified && field.value === user?.phone) && (
+                     {canSendVerification && !isVerificationSent && !(isUserPhoneVerified && field.value === user?.phone) && (
                          <Button
                              type="button"
                              variant="outline"
@@ -460,20 +506,20 @@ function ProfileForm() {
                              Verificar Número
                          </Button>
                      )}
-                      {isPhoneVerified && currentPhoneNumber && currentPhoneNumber === user?.phone && (
+                      {isUserPhoneVerified && currentPhoneNumber && currentPhoneNumber === user?.phone && (
                            <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4"/> Verificado</span>
                       )}
-                      {isPhoneDifferent && !(isPhoneVerified && currentPhoneNumber === user?.phone) && !isVerificationSent && currentPhoneNumber && (
+                      {isPhoneDifferent && !isUserPhoneVerified && !isVerificationSent && currentPhoneNumber && (
                            <span className="text-sm text-orange-600 flex items-center gap-1"><ShieldAlert className="h-4 w-4"/> Verificación requerida</span>
                        )}
-                       {isVerificationSent && !(isPhoneVerified && currentPhoneNumber === user?.phone) && (
+                       {isVerificationSent && !(isUserPhoneVerified && currentPhoneNumber === user?.phone) && (
                            <span className="text-sm text-blue-600 flex items-center gap-1"><ShieldAlert className="h-4 w-4"/> Código enviado. Por favor, verifica.</span>
                        )}
                   </div>
                  <FormMessage />
                   {phoneVerificationError && <p className="text-sm font-medium text-destructive mt-1">{phoneVerificationError}</p>}
 
-                  {isVerificationSent && !(isPhoneVerified && currentPhoneNumber === user?.phone) && (
+                  {isVerificationSent && !(isUserPhoneVerified && currentPhoneNumber === user?.phone) && (
                       <div className="mt-2 space-y-2 p-3 border rounded-md bg-muted/50">
                           <Label htmlFor="verification-code-settings" className="text-sm">Ingresa el código de verificación</Label>
                           <div className="flex items-center gap-2">
