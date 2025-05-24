@@ -111,10 +111,14 @@ export default function SignupPage() {
           'expired-callback': () => {
             console.log("SignupPage: reCAPTCHA expired. Resetting.");
             resetPhoneVerification();
-            recaptchaVerifierRef.current?.render().catch(err => {
-              console.error("SignupPage: reCAPTCHA re-render error after expiry:", err);
-              recaptchaVerifierRef.current = null; // Nullify to allow re-initialization attempt
-            });
+            if (recaptchaVerifierRef.current) {
+                recaptchaVerifierRef.current.render().catch(err => {
+                  console.error("SignupPage: reCAPTCHA re-render error after expiry:", err);
+                  recaptchaVerifierRef.current = null; 
+                });
+            } else {
+                 console.warn("SignupPage: recaptchaVerifierRef.current is null on expired-callback, cannot re-render.");
+            }
           }
         });
         verifier.render().then(widgetId => {
@@ -123,7 +127,7 @@ export default function SignupPage() {
         }).catch(err => {
           console.error("SignupPage: reCAPTCHA render error:", err);
           toast({ title: "Error de reCAPTCHA", description: "No se pudo inicializar la verificación reCAPTCHA. Intenta recargar la página.", variant: "destructive" });
-          recaptchaVerifierRef.current = null; // Ensure it's null if render fails
+          recaptchaVerifierRef.current = null;
         });
       } catch (error) {
         console.error("SignupPage: Error creating RecaptchaVerifier:", error);
@@ -138,8 +142,10 @@ export default function SignupPage() {
 
     return () => {
       console.log("SignupPage: Cleanup effect. Clearing reCAPTCHA if it exists.");
-      recaptchaVerifierRef.current?.clear();
-      recaptchaVerifierRef.current = null;
+      if (recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current.clear();
+        recaptchaVerifierRef.current = null;
+      }
     };
   }, [signupStep, authIsLoading, resetPhoneVerification, toast, form]);
 
@@ -200,7 +206,7 @@ export default function SignupPage() {
           <Link href="/" className="inline-block mb-4">
             <Image src={logoImage} alt="Sportoffice Logo" width={180} height={40} priority data-ai-hint="logo sportoffice"/>
           </Link>
-          <CardTitle className="text-2xl">Crear Cuenta</CardTitle>
+          <CardTitle className="text-2xl">centro para movil y web</CardTitle>
           <CardDescription>Paso {signupStep} de 2.</CardDescription>
         </CardHeader>
         <CardContent>
