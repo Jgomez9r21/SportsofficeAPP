@@ -125,7 +125,7 @@ function ProfileForm() {
 
   const currentPhoneNumber = form.watch("phone");
   const isPhoneValid = phoneValidation.safeParse(currentPhoneNumber).success;
-  const isPhoneDifferent = currentPhoneNumber !== originalPhoneNumber && !!currentPhoneNumber; 
+  const isPhoneDifferent = currentPhoneNumber !== originalPhoneNumber && !!currentPhoneNumber;
   const isPhoneVerified = user?.isPhoneVerified ?? false;
 
   const canSendVerification = isPhoneValid &&
@@ -152,7 +152,7 @@ function ProfileForm() {
                  'expired-callback': () => {
                      console.log("reCAPTCHA expired, attempting to re-render.");
                      toast({ title: "reCAPTCHA Expirado", description: "Por favor, intenta verificar de nuevo.", variant: "destructive" });
-                     resetPhoneVerification(); 
+                     resetPhoneVerification();
                      recaptchaVerifierRef.current?.render().catch(err => {
                         console.error("reCAPTCHA re-render error after expiry:", err);
                         recaptchaVerifierRef.current = null;
@@ -164,12 +164,12 @@ function ProfileForm() {
                  recaptchaVerifierRef.current = verifier;
              }).catch(err => {
                  console.error("reCAPTCHA render error:", err);
-                 toast({ title: "Error de reCAPTCHA", description: "No se pudo inicializar la verificación reCAPTCHA. Intenta recargar la página.", variant: "destructive" });
-                 recaptchaVerifierRef.current = null; 
+                 toast({ title: "Funciones recaptcha", description: "", variant: "destructive" });
+                 recaptchaVerifierRef.current = null;
              });
            } catch (error) {
                console.error("Error creating RecaptchaVerifier:", error);
-               toast({ title: "Error de reCAPTCHA", description: "Error al crear el verificador reCAPTCHA.", variant: "destructive" });
+               toast({ title: "Funciones recaptcha", description: "", variant: "destructive" });
                recaptchaVerifierRef.current = null;
            }
        }
@@ -206,7 +206,7 @@ function ProfileForm() {
       setVerificationCode("");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, form.reset, isPhoneVerified]); 
+  }, [user, form.reset, isPhoneVerified]);
 
 
   const handleSendVerification = useCallback(async () => {
@@ -252,10 +252,10 @@ function ProfileForm() {
         return;
     }
     await verifyCode(verificationCode);
-    if(!phoneVerificationError) { 
+    if(!phoneVerificationError) {
         setVerificationCode("");
-        setOriginalPhoneNumber(currentPhoneNumber); 
-        form.setValue('phone', currentPhoneNumber || ''); 
+        setOriginalPhoneNumber(currentPhoneNumber);
+        form.setValue('phone', currentPhoneNumber || '');
     }
   }, [verificationCode, verifyCode, toast, phoneVerificationError, currentPhoneNumber, form]);
 
@@ -301,15 +301,15 @@ function ProfileForm() {
 
      try {
        await updateUser(updatePayload);
-       form.reset({ 
+       form.reset({
          ...form.getValues(),
-         phone: data.phone || '', 
+         phone: data.phone || '',
          avatarFile: null,
        });
-        if (fileInputRef.current) { 
+        if (fileInputRef.current) {
            fileInputRef.current.value = '';
         }
-       setOriginalPhoneNumber(data.phone || ''); 
+       setOriginalPhoneNumber(data.phone || '');
      } catch (error) {
        console.error("Failed to update profile:", error);
        toast({
@@ -322,8 +322,8 @@ function ProfileForm() {
 
  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    form.setValue("avatarFile", null, { shouldValidate: true }); 
-    setAvatarPreview(user?.avatarUrl || null); 
+    form.setValue("avatarFile", null, { shouldValidate: true });
+    setAvatarPreview(user?.avatarUrl || null);
 
     if (file) {
        const validationResult = fileSchema.safeParse(file);
@@ -331,7 +331,7 @@ function ProfileForm() {
          form.setValue("avatarFile", validationResult.data, { shouldValidate: true });
          const reader = new FileReader();
          reader.onloadend = () => {
-           setAvatarPreview(reader.result as string); 
+           setAvatarPreview(reader.result as string);
          };
          reader.readAsDataURL(validationResult.data);
        } else {
@@ -343,7 +343,7 @@ function ProfileForm() {
                 });
             });
             if (fileInputRef.current) {
-                fileInputRef.current.value = ''; 
+                fileInputRef.current.value = '';
             }
        }
     }
@@ -356,7 +356,7 @@ function ProfileForm() {
 
   const currentYear = getYear(new Date());
 
-  const isSubmitDisabled = !user || 
+  const isSubmitDisabled = !user ||
                            !form.formState.isDirty ||
                            form.formState.isSubmitting ||
                            authLoading ||
@@ -644,3 +644,4 @@ const Settings = () => {
 };
 
 export default Settings;
+
