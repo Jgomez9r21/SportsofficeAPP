@@ -1,13 +1,42 @@
+/**
+ * Nombre del archivo: DataProtectionPolicyPage.tsx
+ *
+ * Propósito:
+ * Este componente representa la página donde se muestra la política de protección de datos personales de Sportoffice,
+ * cumpliendo con la Ley 1581 de 2012 de Colombia. Incluye información sobre el responsable del tratamiento,
+ * finalidades del uso de los datos y derechos del titular.
+ *
+ * Autores:
+ * - Kevin Lopez
+ * - Vanesa Caminos
+ * - Juan Pablo Gomez
+ */
 
+// Importaciones necesarias
 "use client";
-
 import type React from 'react';
 import AppLayout from '@/layout/AppLayout';
-import { FileText, Landmark } from 'lucide-react'; // Using Landmark as an example for legal/policy
+import { FileText, Landmark } from 'lucide-react'; // Usamos Landmark como ejemplo para iconos institucionales
 
+/**
+ * Nombre del método: DataProtectionPolicyContent
+ *
+ * Propósito:
+ * Renderizar el contenido principal de la página de Política de Protección de Datos.
+ *
+ * Variables utilizadas:
+ * - No recibe variables ni estados, es un componente estático.
+ *
+ * Precondición:
+ * - Debe estar dentro de un layout que permita navegación y estilo global
+ *
+ * Postcondición:
+ * - Muestra la política completa en formato legible al usuario
+ */
 const DataProtectionPolicyContent = () => {
   return (
     <div className="container mx-auto px-4 py-8 md:py-12 lg:py-16 max-w-3xl">
+      {/* Encabezado */}
       <div className="flex flex-col items-center text-center mb-8">
         <FileText className="h-16 w-16 text-primary mb-4" />
         <h1 className="text-3xl md:text-4xl font-bold text-foreground">
@@ -17,6 +46,8 @@ const DataProtectionPolicyContent = () => {
           Comprometidos con la protección de tus datos personales.
         </p>
       </div>
+
+      {/* Contenido de la política */}
       <div className="prose prose-sm sm:prose-base lg:prose-lg max-w-none text-foreground/80 bg-card p-6 rounded-lg shadow">
         <p>
           De conformidad con lo dispuesto en la Ley Estatutaria 1581 de 2012 y su Decreto Reglamentario 1377 de 2013,
@@ -24,11 +55,13 @@ const DataProtectionPolicyContent = () => {
           a todos los titulares de los datos recolectados o que en el futuro se obtengan en el ejercicio de las
           actividades comerciales, culturales o laborales.
         </p>
+
         <h2 className="text-xl font-semibold mt-6 mb-3 text-foreground">Responsable del Tratamiento</h2>
         <p>
           Sportoffice, con domicilio en [Tu Ciudad, Colombia], correo electrónico [tu@correo.com] y teléfono [Tu Número de Teléfono],
           será el responsable del tratamiento de los datos personales.
         </p>
+
         <h2 className="text-xl font-semibold mt-6 mb-3 text-foreground">Finalidad del Tratamiento de Datos</h2>
         <p>
           Los datos personales que Sportoffice recolecta y almacena son utilizados para las siguientes finalidades:
@@ -43,6 +76,7 @@ const DataProtectionPolicyContent = () => {
           <li>Desarrollar el proceso de selección, evaluación, y vinculación laboral.</li>
           <li>Soportar procesos de auditoría interna o externa.</li>
         </ul>
+
         <h2 className="text-xl font-semibold mt-6 mb-3 text-foreground">Derechos de los Titulares</h2>
         <p>
           Como titular de sus datos personales Usted tiene derecho a:
@@ -55,6 +89,7 @@ const DataProtectionPolicyContent = () => {
           <li>Revocar la autorización y/o solicitar la supresión del dato, siempre que no exista un deber legal o contractual que impida eliminarlos.</li>
           <li>Abstenerse de responder las preguntas sobre datos sensibles. Tendrá carácter facultativo las respuestas que versen sobre datos sensibles o sobre datos de las niñas y niños y adolescentes.</li>
         </ul>
+
         <p className="mt-6">
           Esta es una política de protección de datos de ejemplo basada en la legislación colombiana.
           Debes consultar con un asesor legal para asegurar el cumplimiento y reemplazar este texto con tu política real y completa.
@@ -65,6 +100,21 @@ const DataProtectionPolicyContent = () => {
   );
 };
 
+/**
+ * Nombre del componente: DataProtectionPolicyPage
+ *
+ * Propósito:
+ * Envolver el contenido de la política de protección de datos dentro del layout principal de la aplicación.
+ *
+ * Variables utilizadas:
+ * - Sin estado interno, solo renderiza contenido estático
+ *
+ * Precondición:
+ * - Requiere estar dentro del contexto de navegación de Next.js
+ *
+ * Postcondición:
+ * - Se muestra la política de protección de datos bajo el diseño general de la aplicación
+ */
 const DataProtectionPolicyPage = () => {
   return (
     <AppLayout>
