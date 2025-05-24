@@ -77,7 +77,7 @@ type SignupValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signup, isLoading: authIsLoading, loginError, sendVerificationCode, verifyCode, isVerificationSent, phoneVerificationError, isVerifyingCode, resetPhoneVerification } = useAuth();
+  const { user, signup, isLoading: authIsLoading, loginError, sendVerificationCode, verifyCode, isVerificationSent, phoneVerificationError, isVerifyingCode, resetPhoneVerification } = useAuth();
   const { toast } = useToast();
   const [signupStep, setSignupStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
