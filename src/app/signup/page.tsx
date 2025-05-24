@@ -144,6 +144,8 @@ export default function SignupPage() {
   };
 
   const currentYear = getYear(new Date());
+  const isValidDate = (date: any): date is Date => date instanceof Date && !isNaN(date.getTime());
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-muted p-4">
@@ -182,7 +184,57 @@ export default function SignupPage() {
                 <div className="space-y-4">
                   <div ref={recaptchaContainerRef} id="recaptcha-container-signup-page"></div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="dob" render={({ field }) => ( <FormItem className="flex flex-col"> <FormLabel>Fecha de Nacimiento</FormLabel> <Popover> <PopoverTrigger asChild> <FormControl> <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal",!field.value && "text-muted-foreground")}> <CalendarIcon className="mr-2 h-4 w-4"/> {field.value ? format(new Date(field.value), "PPP", { locale: es }) : <span>Elige una fecha</span>} </Button> </FormControl> </PopoverTrigger> <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} disabled={(d) => d > new Date() || d < new Date("1900-01-01")} initialFocus captionLayout="dropdown-buttons" fromYear={1900} toYear={currentYear} locale={es}/></PopoverContent> </Popover> <FormMessage /> </FormItem> )}/>
+                  <FormField
+                    control={form.control}
+                    name="dob"
+                    render={({ field }) => {
+                      const dateValue = field.value;
+                      const displayDate = isValidDate(dateValue) ? new Date(dateValue) : undefined;
+                      return (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Fecha de Nacimiento</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant={"outline"}
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !displayDate && "text-muted-foreground"
+                                  )}
+                                >
+                                  <span className="flex items-center"> {/* Wrapper span */}
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {displayDate ? (
+                                      format(displayDate, "PPP", { locale: es })
+                                    ) : (
+                                      <span>Elige una fecha</span>
+                                    )}
+                                  </span>
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={displayDate}
+                                onSelect={field.onChange}
+                                disabled={(d) =>
+                                  d > new Date() || d < new Date("1900-01-01")
+                                }
+                                initialFocus
+                                captionLayout="dropdown-buttons"
+                                fromYear={1900}
+                                toYear={currentYear}
+                                locale={es}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
                     <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem> <FormLabel>Género (Opcional)</FormLabel> <Select onValueChange={field.onChange} value={field.value}> <FormControl><SelectTrigger><SelectValue placeholder="Selecciona tu género" /></SelectTrigger></FormControl> <SelectContent>{genders.map((g) => (<SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>))}</SelectContent> </Select> <FormMessage /> </FormItem> )}/>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -199,7 +251,7 @@ export default function SignupPage() {
               {loginError && <p className="text-sm font-medium text-destructive pt-1">{loginError}</p>}
               <div className="flex flex-col sm:flex-row justify-between items-center pt-4 gap-2">
                 {signupStep === 1 ? (
-                  <Button type="button" onClick={handleNextStep} className="w-full sm:w-auto order-last sm:order-last">Siguiente</Button>
+                  <Button type="button" onClick={handleNextStep} className="w-full sm:w-auto order-last sm:order-last">siguiente sin errores</Button>
                 ) : (
                   <Button type="button" variant="outline" onClick={handlePrevStep} className="w-full sm:w-auto order-last sm:order-first">Anterior</Button>
                 )}
