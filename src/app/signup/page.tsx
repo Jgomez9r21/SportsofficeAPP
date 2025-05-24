@@ -94,18 +94,55 @@ export default function SignupPage() {
 
   useEffect(() => {
     let verifier: RecaptchaVerifier | null = null;
-    if (!firebaseApp) { console.warn("Firebase App not initialized for reCAPTCHA."); return; }
-    const authInstance = getAuth(firebaseApp);
-    if (recaptchaContainerRef.current && !recaptchaVerifierRef.current && !authIsLoading && authInstance && signupStep === 2 && form.getValues("phone")) {
-      try {
-        verifier = new RecaptchaVerifier(authInstance, recaptchaContainerRef.current, {
-          'size': 'invisible', 'callback': () => {}, 'expired-callback': () => { resetPhoneVerification(); recaptchaVerifierRef.current?.render().catch(console.error); }
-        });
-        verifier.render().then(() => recaptchaVerifierRef.current = verifier).catch(err => { toast({ title: "Error de reCAPTCHA", description: "No se pudo inicializar reCAPTCHA.", variant: "destructive" }); });
-      } catch (error) { toast({ title: "Error de reCAPTCHA", description: "Error creando verificador reCAPTCHA.", variant: "destructive" });}
+    if (!firebaseApp) {
+      console.warn("Firebase App (firebaseApp) is not initialized. Cannot set up reCAPTCHA for signup page.");
+      return;
     }
-    return () => { verifier?.clear(); recaptchaVerifierRef.current = null; };
-  }, [authIsLoading, resetPhoneVerification, signupStep, toast, form]);
+    const authInstance = getAuth(firebaseApp);
+
+    if (signupStep === 2 && form.getValues("phone") && recaptchaContainerRef.current && !recaptchaVerifierRef.current && !authIsLoading && authInstance) {
+      try {
+        console.log("SignupPage: Attempting to initialize reCAPTCHA for step 2.");
+        verifier = new RecaptchaVerifier(authInstance, recaptchaContainerRef.current, {
+          'size': 'invisible',
+          'callback': (response: any) => {
+            console.log("SignupPage: reCAPTCHA solved:", response);
+          },
+          'expired-callback': () => {
+            console.log("SignupPage: reCAPTCHA expired. Resetting.");
+            resetPhoneVerification();
+            recaptchaVerifierRef.current?.render().catch(err => {
+              console.error("SignupPage: reCAPTCHA re-render error after expiry:", err);
+              recaptchaVerifierRef.current = null; // Nullify to allow re-initialization attempt
+            });
+          }
+        });
+        verifier.render().then(widgetId => {
+          console.log("SignupPage: reCAPTCHA rendered, widgetId:", widgetId);
+          recaptchaVerifierRef.current = verifier;
+        }).catch(err => {
+          console.error("SignupPage: reCAPTCHA render error:", err);
+          toast({ title: "Error de reCAPTCHA", description: "No se pudo inicializar la verificación reCAPTCHA. Intenta recargar la página.", variant: "destructive" });
+          recaptchaVerifierRef.current = null; // Ensure it's null if render fails
+        });
+      } catch (error) {
+        console.error("SignupPage: Error creating RecaptchaVerifier:", error);
+        toast({ title: "Error de reCAPTCHA", description: "Error al crear el verificador reCAPTCHA.", variant: "destructive" });
+        recaptchaVerifierRef.current = null;
+      }
+    } else if (signupStep !== 2 && recaptchaVerifierRef.current) {
+      console.log("SignupPage: Not in step 2 or no phone, clearing reCAPTCHA if it exists.");
+      recaptchaVerifierRef.current.clear();
+      recaptchaVerifierRef.current = null;
+    }
+
+    return () => {
+      console.log("SignupPage: Cleanup effect. Clearing reCAPTCHA if it exists.");
+      recaptchaVerifierRef.current?.clear();
+      recaptchaVerifierRef.current = null;
+    };
+  }, [signupStep, authIsLoading, resetPhoneVerification, toast, form]);
+
 
   const handleNextStep = async () => {
     const result = await form.trigger(["firstName", "lastName", "country", "phone", "profileType"]);
@@ -114,7 +151,6 @@ export default function SignupPage() {
   };
   const handlePrevStep = () => {
     setSignupStep(1);
-    // Clear errors for step 2 fields if going back
     form.clearErrors(['dob', 'gender', 'documentType', 'documentNumber', 'email', 'password', 'confirmPassword']);
   };
 
@@ -133,7 +169,10 @@ export default function SignupPage() {
     if (!phoneNumber || !phoneValidation.safeParse(phoneNumber).success) {
       form.setError("phone", { type: "manual", message: "Número de teléfono inválido para verificación." }); return;
     }
-    if (!recaptchaVerifierRef.current) { toast({ title: "reCAPTCHA no listo", description: "Por favor, espera o recarga la página.", variant: "destructive" }); return; }
+    if (!recaptchaVerifierRef.current) {
+      toast({ title: "reCAPTCHA no listo", description: "Por favor, espera a que reCAPTCHA se cargue o recarga la página.", variant: "destructive" });
+      return;
+    }
     await sendVerificationCode(phoneNumber, recaptchaVerifierRef.current);
   };
 
@@ -203,7 +242,7 @@ export default function SignupPage() {
                                     !displayDate && "text-muted-foreground"
                                   )}
                                 >
-                                  <span className="flex items-center"> {/* Wrapper span */}
+                                  <span className="flex items-center">
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {displayDate ? (
                                       format(displayDate, "PPP", { locale: es })
@@ -251,7 +290,7 @@ export default function SignupPage() {
               {loginError && <p className="text-sm font-medium text-destructive pt-1">{loginError}</p>}
               <div className="flex flex-col sm:flex-row justify-between items-center pt-4 gap-2">
                 {signupStep === 1 ? (
-                  <Button type="button" onClick={handleNextStep} className="w-full sm:w-auto order-last sm:order-last">siguiente sin errores</Button>
+                  <Button type="button" onClick={handleNextStep} className="w-full sm:w-auto order-last sm:order-last">Siguiente</Button>
                 ) : (
                   <Button type="button" variant="outline" onClick={handlePrevStep} className="w-full sm:w-auto order-last sm:order-first">Anterior</Button>
                 )}
