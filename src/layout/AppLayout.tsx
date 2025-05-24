@@ -31,7 +31,7 @@ import {
 } from "../components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Toaster } from "@/components/ui/toaster";
-import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Menu, LogIn, Building, Waves, LayoutGrid, FileText, ShieldCheck, X as XIcon, AlertTriangle, PackageSearch, WifiOff } from "lucide-react"; 
+import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Menu, LogIn, Building, Waves, LayoutGrid, FileText, ShieldCheck, X as XIcon, AlertTriangle, PackageSearch, WifiOff, LogOut } from "lucide-react"; 
 
 import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
@@ -74,7 +74,8 @@ export default function AppLayout({
     isLoggedIn,
     isLoading, 
     firebaseConfigError,
-    isFirestoreOffline, 
+    isFirestoreOffline,
+    handleLogout, 
   } = authContext;
 
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
@@ -157,15 +158,31 @@ export default function AppLayout({
               </SidebarContent>
               <SidebarFooter className="p-2 border-t flex flex-col gap-2 flex-shrink-0">
                 {isLoggedIn && user ? (
-                  <Button variant="ghost" onClick={() => router.push('/settings')} className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent/10 p-1 rounded-md overflow-hidden w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:rounded-md">
-                    <Avatar className="h-8 w-8 flex-shrink-0 group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7">
-                      <AvatarImage src={user.avatarUrl || undefined} alt={user.name} data-ai-hint="user avatar placeholder" />
-                      <AvatarFallback>{user.initials}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col text-sm text-left transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:sr-only">
-                      <span className="font-semibold truncate">{user.name}</span>
-                    </div>
-                  </Button>
+                  <>
+                    <Button variant="ghost" onClick={() => router.push('/settings')} className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent/10 p-1 rounded-md overflow-hidden w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:rounded-md">
+                      <Avatar className="h-8 w-8 flex-shrink-0 group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7">
+                        <AvatarImage src={user.avatarUrl || undefined} alt={user.name} data-ai-hint="user avatar placeholder" />
+                        <AvatarFallback>{user.initials}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col text-sm text-left transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:sr-only">
+                        <span className="font-semibold truncate">{user.name}</span>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleLogout}
+                      className="w-full justify-start text-sm h-9 px-3 text-sidebar-foreground hover:bg-sidebar-accent/10 hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:justify-center"
+                      title="Cerrar Sesión"
+                    >
+                      <LogOut className="mr-2 h-4 w-4 group-data-[collapsible=icon]:mr-0" />
+                      <span className="overflow-hidden whitespace-nowrap transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:sr-only">
+                        Cerrar Sesión
+                      </span>
+                       <span className="sr-only group-data-[collapsible!=icon]:hidden">
+                         Cerrar Sesión
+                       </span>
+                    </Button>
+                  </>
                 ) : (
                    <Button
                      asChild
@@ -242,12 +259,21 @@ export default function AppLayout({
                                    </SidebarMenu>
                               </SidebarContent>
                           </ScrollArea>
-                           <SidebarFooter className="p-2 border-t flex-shrink-0">
+                           <SidebarFooter className="p-2 border-t flex-shrink-0 space-y-2">
                                {isLoggedIn && user ? (
+                                 <>
                                     <Button variant="ghost" onClick={() => { router.push('/settings'); setIsMobileSheetOpen(false); }} className="flex items-center gap-2 p-1 rounded-md w-full justify-start">
                                         <Avatar className="h-8 w-8"><AvatarImage src={user.avatarUrl || undefined} alt={user.name} data-ai-hint="user avatar small" /><AvatarFallback>{user.initials}</AvatarFallback></Avatar>
                                         <span className="font-medium truncate">{user.name}</span>
                                     </Button>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => { handleLogout(); setIsMobileSheetOpen(false); }}
+                                      className="w-full justify-start h-10 px-3 text-sidebar-foreground hover:bg-sidebar-accent/10 hover:text-sidebar-accent-foreground"
+                                    >
+                                      <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
+                                    </Button>
+                                  </>
                                 ) : (
                                     <Button
                                       asChild
@@ -266,14 +292,14 @@ export default function AppLayout({
                </header>
 
               {/* Content with optional Firestore offline banner */}
-              <div className={cn("flex-1 overflow-auto flex flex-col", isFirestoreOffline && "opacity-75 pointer-events-none")}>
+              <div className={cn("flex-1 overflow-auto flex flex-col", isFirestoreOffline && "opacity-75")}>
                 {isFirestoreOffline && (
                   <div className="sticky top-0 z-50 bg-destructive/95 text-destructive-foreground p-2.5 text-center text-sm font-semibold flex items-center justify-center shadow-lg">
                     <WifiOff className="h-5 w-5 mr-2.5" />
                     <span>Estás desconectado o la base de datos no está disponible. Algunas funciones pueden estar limitadas.</span>
                   </div>
                 )}
-                <div className={cn("flex-grow", isFirestoreOffline && "blur-sm")}>
+                <div className={cn("flex-grow", isFirestoreOffline && "blur-sm pointer-events-none")}>
                   {children}
                 </div>
                 <Footer />
