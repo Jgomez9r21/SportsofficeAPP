@@ -67,7 +67,7 @@ export default function LoginPage() {
           <Link href="/" className="inline-block mb-4">
             <Image src={logoImage} alt="Sportoffice Logo" width={180} height={40} priority data-ai-hint="logo sportoffice"/>
           </Link>
-          <CardTitle className="text-2xl">Login centro</CardTitle>
+          <CardTitle className="text-2xl">Centro</CardTitle>
           <CardDescription>
             Ingresa tu correo y contraseña para continuar.
           </CardDescription>
