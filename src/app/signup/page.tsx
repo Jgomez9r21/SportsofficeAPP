@@ -85,6 +85,7 @@ export default function SignupPage() {
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
+  const [recaptchaKey, setRecaptchaKey] = useState(0); // Key to force re-mount reCAPTCHA container
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -92,62 +93,73 @@ export default function SignupPage() {
     mode: "onChange",
   });
 
+  const phoneNumberForEffect = form.watch("phone");
+
   useEffect(() => {
-    let verifier: RecaptchaVerifier | null = null;
     if (!firebaseApp) {
-      console.warn("Firebase App (firebaseApp) is not initialized. Cannot set up reCAPTCHA for signup page.");
+      console.warn("SignupPage: Firebase App (firebaseApp) is not initialized. Cannot set up reCAPTCHA.");
       return;
     }
     const authInstance = getAuth(firebaseApp);
+    const isValidPhone = phoneValidation.safeParse(phoneNumberForEffect).success;
 
-    if (signupStep === 2 && form.getValues("phone") && recaptchaContainerRef.current && !recaptchaVerifierRef.current && !authIsLoading && authInstance) {
-      try {
-        console.log("SignupPage: Attempting to initialize reCAPTCHA for step 2.");
-        verifier = new RecaptchaVerifier(authInstance, recaptchaContainerRef.current, {
-          'size': 'invisible',
-          'callback': (response: any) => {
-            console.log("SignupPage: reCAPTCHA solved:", response);
-          },
-          'expired-callback': () => {
-            console.log("SignupPage: reCAPTCHA expired. Resetting.");
-            resetPhoneVerification();
-            if (recaptchaVerifierRef.current) {
-                recaptchaVerifierRef.current.render().catch(err => {
-                  console.error("SignupPage: reCAPTCHA re-render error after expiry:", err);
-                  recaptchaVerifierRef.current = null; 
-                });
-            } else {
-                 console.warn("SignupPage: recaptchaVerifierRef.current is null on expired-callback, cannot re-render.");
-            }
+    const shouldRenderRecaptcha = signupStep === 2 && phoneNumberForEffect && isValidPhone && !authIsLoading && recaptchaContainerRef.current;
+
+    if (shouldRenderRecaptcha) {
+      if (!recaptchaVerifierRef.current) {
+        console.log("SignupPage: Initializing new reCAPTCHA verifier for key:", recaptchaKey);
+        try {
+          // Ensure the container is empty before rendering.
+          // This is a strong measure if clear() is not enough.
+          if (recaptchaContainerRef.current) {
+            recaptchaContainerRef.current.innerHTML = '';
           }
-        });
-        verifier.render().then(widgetId => {
-          console.log("SignupPage: reCAPTCHA rendered, widgetId:", widgetId);
-          recaptchaVerifierRef.current = verifier;
-        }).catch(err => {
-          console.error("SignupPage: reCAPTCHA render error:", err);
-          toast({ title: "Error de reCAPTCHA", description: "No se pudo inicializar la verificación reCAPTCHA. Intenta recargar la página.", variant: "destructive" });
+
+          const verifier = new RecaptchaVerifier(authInstance, recaptchaContainerRef.current, {
+            'size': 'invisible',
+            'callback': (response: any) => {
+              console.log("SignupPage: reCAPTCHA solved via callback:", response);
+            },
+            'expired-callback': () => {
+              console.log("SignupPage: reCAPTCHA expired. Clearing current verifier ref and incrementing key.");
+              if (recaptchaVerifierRef.current) {
+                recaptchaVerifierRef.current.clear();
+                recaptchaVerifierRef.current = null;
+              }
+              setRecaptchaKey(prevKey => prevKey + 1); // Force re-mount of the reCAPTCHA div
+              resetPhoneVerification(); // This will trigger a re-render
+            }
+          });
+          verifier.render().then(widgetId => {
+            console.log("SignupPage: reCAPTCHA rendered successfully, widgetId:", widgetId);
+            recaptchaVerifierRef.current = verifier;
+          }).catch(err => {
+            console.error("SignupPage: reCAPTCHA.render() failed:", err);
+            toast({ title: "Error de reCAPTCHA", description: "No se pudo mostrar la verificación reCAPTCHA. Intenta recargar.", variant: "destructive" });
+            recaptchaVerifierRef.current = null;
+          });
+        } catch (error) {
+          console.error("SignupPage: Error creating RecaptchaVerifier instance:", error);
+          toast({ title: "Error de reCAPTCHA", description: "Fallo al crear el verificador reCAPTCHA.", variant: "destructive" });
           recaptchaVerifierRef.current = null;
-        });
-      } catch (error) {
-        console.error("SignupPage: Error creating RecaptchaVerifier:", error);
-        toast({ title: "Error de reCAPTCHA", description: "Error al crear el verificador reCAPTCHA.", variant: "destructive" });
+        }
+      }
+    } else {
+      if (recaptchaVerifierRef.current) {
+        console.log("SignupPage: Conditions for reCAPTCHA not met. Clearing existing verifier.");
+        recaptchaVerifierRef.current.clear();
         recaptchaVerifierRef.current = null;
       }
-    } else if (signupStep !== 2 && recaptchaVerifierRef.current) {
-      console.log("SignupPage: Not in step 2 or no phone, clearing reCAPTCHA if it exists.");
-      recaptchaVerifierRef.current.clear();
-      recaptchaVerifierRef.current = null;
     }
 
     return () => {
-      console.log("SignupPage: Cleanup effect. Clearing reCAPTCHA if it exists.");
       if (recaptchaVerifierRef.current) {
+        console.log("SignupPage: useEffect cleanup. Clearing reCAPTCHA verifier.");
         recaptchaVerifierRef.current.clear();
         recaptchaVerifierRef.current = null;
       }
     };
-  }, [signupStep, authIsLoading, resetPhoneVerification, toast, form]);
+  }, [signupStep, phoneNumberForEffect, authIsLoading, resetPhoneVerification, toast, recaptchaKey]);
 
 
   const handleNextStep = async () => {
@@ -227,7 +239,7 @@ export default function SignupPage() {
               )}
               {signupStep === 2 && (
                 <div className="space-y-4">
-                  <div ref={recaptchaContainerRef} id="recaptcha-container-signup-page"></div>
+                  <div key={recaptchaKey} ref={recaptchaContainerRef} id="recaptcha-container-signup-page"></div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -235,7 +247,7 @@ export default function SignupPage() {
                     render={({ field }) => {
                       const dateValue = field.value;
                       let displayDate: Date | undefined = undefined;
-                      if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+                      if (isValidDate(dateValue)) {
                         displayDate = dateValue;
                       }
                       return (
@@ -251,7 +263,7 @@ export default function SignupPage() {
                                     !displayDate && "text-muted-foreground"
                                   )}
                                 >
-                                  <span className="flex items-center">
+                                  <span className="flex items-center"> {/* Ensure single child for Button if asChild is used by PopoverTrigger */}
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {displayDate ? (
                                       format(displayDate, "PPP", { locale: es })
