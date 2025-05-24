@@ -31,7 +31,7 @@ import {
 } from "../components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Toaster } from "@/components/ui/toaster";
-import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Menu, LogIn, Building, Waves, LayoutGrid, FileText, ShieldCheck, X as XIcon, AlertTriangle, PackageSearch } from "lucide-react";
+import { Home, Settings, CreditCard, User as UserIcon, CalendarDays, Heart, UploadCloud, Menu, LogIn, Building, Waves, LayoutGrid, FileText, ShieldCheck, X as XIcon, AlertTriangle, PackageSearch, WifiOff } from "lucide-react"; // Added WifiOff
 
 import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
@@ -55,10 +55,8 @@ export default function AppLayout({
 }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const authContext = useAuth(); // Get the whole context
+  const authContext = useAuth(); 
 
-  // If context is not yet available (e.g., during initial SSR or if AuthProvider hasn't mounted)
-  // show a global loading state or a minimal layout.
   if (!authContext) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
@@ -75,8 +73,9 @@ export default function AppLayout({
   const {
     user,
     isLoggedIn,
-    isLoading, // Use isLoading from context
-    firebaseConfigError, // Use firebaseConfigError from context
+    isLoading, 
+    firebaseConfigError,
+    isFirestoreOffline, // Consume new state
   } = authContext;
 
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
@@ -94,10 +93,10 @@ export default function AppLayout({
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-center">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <h1 className="text-2xl font-bold text-destructive mb-2">Error Crítico de Configuración</h1>
+        <h1 className="text-2xl font-bold text-destructive mb-2">Error Crítico de Configuración de Firebase</h1>
         <p className="text-foreground mb-1">La aplicación no puede conectarse a los servicios de Firebase.</p>
         <p className="text-muted-foreground mb-4 max-w-md">
-          Por favor, asegúrate de que las variables de entorno de Firebase (<code>NEXT_PUBLIC_FIREBASE_API_KEY</code>, <code>NEXT_PUBLIC_FIREBASE_PROJECT_ID</code>, etc.) estén correctamente configuradas en tu archivo <code>.env.local</code> y que hayas reiniciado el servidor de desarrollo.
+          Por favor, asegúrate de que las variables de entorno de Firebase (<code>NEXT_PUBLIC_FIREBASE_API_KEY</code>, etc.) estén correctamente configuradas en tu archivo <code>.env.local</code> y que hayas reiniciado el servidor de desarrollo.
         </p>
         <Button onClick={() => window.location.reload()}>
           Intentar Recargar
@@ -123,6 +122,7 @@ export default function AppLayout({
   return (
       <>
           <div className="flex h-screen overflow-hidden">
+            {/* Desktop Sidebar */}
             <Sidebar className="hidden lg:flex flex-col flex-shrink-0 border-r bg-sidebar text-sidebar-foreground" side="left" variant="sidebar" collapsible="icon">
                <DesktopSidebarHeader className="p-2 border-b flex items-center gap-2 justify-start group-data-[collapsible=icon]:justify-center flex-shrink-0 h-14">
                   <Image
@@ -171,7 +171,7 @@ export default function AppLayout({
                 ) : (
                    <Button
                      asChild
-                     variant="accent"
+                     variant="accent" // This variant might need definition in globals.css or tailwind config if not standard ShadCN
                      className="w-full justify-start text-sm h-10 px-3 py-2 bg-accent text-accent-foreground hover:bg-accent/90 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:justify-center"
                    >
                      <Link href="/login">
@@ -188,7 +188,9 @@ export default function AppLayout({
               </SidebarFooter>
             </Sidebar>
 
+            {/* Main Content Area */}
             <div className="flex flex-col flex-1 overflow-hidden">
+               {/* Mobile Header */}
                <header className="sticky top-0 z-10 flex h-14 items-center justify-start border-b bg-background px-3 sm:px-4 lg:hidden flex-shrink-0">
                   <Sheet open={isMobileSheetOpen} onOpenChange={handleMobileSheetOpenChange}>
                       <SheetTrigger asChild>
@@ -265,12 +267,19 @@ export default function AppLayout({
                   </Sheet>
                </header>
 
-              <SidebarInset className="flex-1 overflow-auto flex flex-col">
-                  <div className="flex-grow">
-                    {children}
+              {/* Content with optional Firestore offline banner */}
+              <div className="flex-1 overflow-auto flex flex-col">
+                {isFirestoreOffline && (
+                  <div className="sticky top-0 z-20 bg-destructive/90 text-destructive-foreground p-2 text-center text-sm font-medium flex items-center justify-center">
+                    <WifiOff className="h-4 w-4 mr-2" />
+                    Estás desconectado o la base de datos no está disponible. Algunas funciones pueden estar limitadas.
                   </div>
-               <Footer />
-              </SidebarInset>
+                )}
+                <div className="flex-grow">
+                  {children}
+                </div>
+                <Footer />
+              </div>
             </div>
           </div>
           <Toaster />
