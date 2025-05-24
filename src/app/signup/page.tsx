@@ -195,9 +195,9 @@ export default function SignupPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-muted p-4">
        <div className="absolute top-4 left-4 md:top-8 md:left-8">
-        <Button variant="outline" asChild>
+        <Button variant="outline" size="icon" asChild aria-label="Volver a Inicio">
           <Link href="/">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Inicio
+            <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
       </div>
@@ -234,7 +234,10 @@ export default function SignupPage() {
                     name="dob"
                     render={({ field }) => {
                       const dateValue = field.value;
-                      const displayDate = isValidDate(dateValue) ? new Date(dateValue) : undefined;
+                      let displayDate: Date | undefined = undefined;
+                      if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+                        displayDate = dateValue;
+                      }
                       return (
                         <FormItem className="flex flex-col">
                           <FormLabel>Fecha de Nacimiento</FormLabel>
