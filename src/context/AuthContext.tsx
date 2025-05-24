@@ -105,7 +105,7 @@ interface AuthContextType {
   isVerificationSent: boolean;
   isVerifyingCode: boolean;
   firebaseConfigError: boolean;
-  isFirestoreOffline: boolean; // New state
+  isFirestoreOffline: boolean;
   login: (credentials: LoginValues) => Promise<FirebaseUser | null>;
   signup: (details: SignupValues) => Promise<FirebaseUser | null>;
   logout: () => Promise<void>;
@@ -134,35 +134,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [firebaseConfigError, setFirebaseConfigError] = useState(false);
-  const [isFirestoreOffline, setIsFirestoreOffline] = useState(false); // New state
+  const [isFirestoreOffline, setIsFirestoreOffline] = useState(false);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     console.log("AuthContext: Component has mounted.");
     setHasMounted(true);
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
     if (!hasMounted) {
       console.log("AuthContext: Waiting for mount before checking auth.");
-      return () => { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); };
+      return;
     }
-
     console.log("AuthContext: Mount complete. Starting auth check process.");
 
     if (!isFirebaseInitialized) {
-      console.error("AuthContext: Firebase is NOT initialized (checked via isFirebaseInitialized from lib/firebase). Aborting auth check.");
+      console.error("AuthContext: Firebase client SDK is NOT initialized (checked via isFirebaseInitialized from lib/firebase). Aborting auth check.");
       setFirebaseConfigError(true);
       setIsLoading(false);
-      return () => { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); };
+      return;
     }
-    setFirebaseConfigError(false); // Reset any previous config error if Firebase is now initialized.
+    setFirebaseConfigError(false);
 
     if (!firebaseAuthInstance) {
-      console.error("AuthContext: firebaseAuthInstance is NOT available, even though isFirebaseInitialized was true. This is unexpected.");
-      setFirebaseConfigError(true); // This indicates a deeper issue if isFirebaseInitialized was true.
+      console.error("AuthContext: firebaseAuthInstance is NOT available from lib/firebase, even though isFirebaseInitialized was true. This is unexpected.");
+      setFirebaseConfigError(true);
       setIsLoading(false);
-      return () => { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); };
+      return;
     }
     
     console.log("AuthContext: Firebase is initialized and Auth instance exists. Setting up onAuthStateChanged listener.");
@@ -172,22 +176,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     loadingTimeoutRef.current = setTimeout(() => {
       console.warn("AuthContext: Auth check timed out after 15 seconds. Forcing isLoading to false.");
-      if (isLoading) {
+      if (isLoading) { // Only act if still loading
         setIsLoading(false);
         toast({ title: "Tiempo de Espera Excedido", description: "La verificación de sesión tardó demasiado. Intenta recargar.", variant: "destructive" });
       }
-      loadingTimeoutRef.current = null;
+      loadingTimeoutRef.current = null; // Clear ref after execution
     }, 15000);
 
     const unsubscribe = onAuthStateChanged(firebaseAuthInstance, async (firebaseUser) => {
       console.log("AuthContext: onAuthStateChanged event received. User UID:", firebaseUser?.uid || "No user");
       try {
         if (firebaseUser) {
-          if (db) {
+          if (db) { // Ensure Firestore instance is available
             try {
               console.log("AuthContext: Fetching user document from Firestore for UID:", firebaseUser.uid);
               const userDocRef = doc(db, "users", firebaseUser.uid);
               const userDoc = await getDoc(userDocRef);
+
               if (userDoc.exists()) {
                 const userData = userDoc.data() as Omit<User, 'id' | 'initials' | 'name'>;
                 const combinedUser: User = {
@@ -221,32 +226,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const basicUser: User = { id: firebaseUser.uid, name: `${firstName} ${lastName}`.trim(), firstName, lastName, initials, avatarUrl: firebaseUser.photoURL || defaultAvatar, email: firebaseUser.email || "No disponible", isPhoneVerified: !!firebaseUser.phoneNumber, phone: firebaseUser.phoneNumber || undefined };
                 setUser(basicUser);
                 setIsLoggedIn(true);
-                setIsFirestoreOffline(false); // Not an offline error, just missing doc
+                setIsFirestoreOffline(false);
               }
             } catch (firestoreError: any) {
-              console.error("AuthContext: Error fetching user document from Firestore for UID:", firebaseUser.uid, firestoreError);
+              console.error("AuthContext: Error fetching user document from Firestore for UID:", firebaseUser.uid, firestoreError); // This is line 227
               let firestoreErrorTitle = "Error al Cargar Perfil";
               let firestoreErrorMessage = "No se pudo cargar tu información de perfil. Usando datos básicos.";
               if (firestoreError.code === 'unavailable') {
-                firestoreErrorTitle = "Problema de Conexión";
-                firestoreErrorMessage = "No se pudo conectar a la base de datos (posiblemente offline). Usando datos básicos.";
-                setIsFirestoreOffline(true); // Set Firestore offline state
+                firestoreErrorTitle = "Firestore Desconectado";
+                firestoreErrorMessage = "El cliente de Firestore está desconectado. No se pueden cargar/guardar datos de perfil. Usando datos básicos.";
+                setIsFirestoreOffline(true); 
               } else {
                 setIsFirestoreOffline(false);
               }
               toast({ title: firestoreErrorTitle, description: firestoreErrorMessage, variant: "destructive" });
+              // Fallback to basic user info from Firebase Auth if Firestore fails
               const firstName = firebaseUser.displayName?.split(' ')[0] || firebaseUser.email?.split('@')[0] || "Usuario";
               const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || "";
               const initials = ((firstName[0] || "") + (lastName[0] || (firebaseUser.email?.[0] || ""))).toUpperCase() || "U";
               const basicUser: User = { id: firebaseUser.uid, name: `${firstName} ${lastName}`.trim(), firstName, lastName, initials, avatarUrl: firebaseUser.photoURL || defaultAvatar, email: firebaseUser.email || "No disponible", isPhoneVerified: !!firebaseUser.phoneNumber, phone: firebaseUser.phoneNumber || undefined };
               setUser(basicUser);
-              setIsLoggedIn(true);
+              setIsLoggedIn(true); // Still logged in with Firebase Auth, just Firestore profile is missing/failed
             }
-          } else {
+          } else { // Firestore instance (db) not available
             console.error("AuthContext: Firestore service (db) is not available from lib/firebase. Cannot fetch user profile.");
             toast({ title: "Error Crítico de Configuración", description: "El servicio de base de datos (Firestore) no está inicializado. Usando datos básicos.", variant: "destructive" });
-            setFirebaseConfigError(true); // This is effectively a config error if db isn't there
-            setIsFirestoreOffline(true); // Assume offline if DB service isn't there
+            setFirebaseConfigError(true);
+            setIsFirestoreOffline(true);
             const firstName = firebaseUser.displayName?.split(' ')[0] || firebaseUser.email?.split('@')[0] || "Usuario";
             const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || "";
             const initials = ((firstName[0] || "") + (lastName[0] || (firebaseUser.email?.[0] || ""))).toUpperCase() || "U";
@@ -254,11 +260,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(basicUser);
             setIsLoggedIn(true);
           }
-        } else {
+        } else { // No Firebase user
           console.log("AuthContext: No Firebase user found by onAuthStateChanged.");
           setUser(null);
           setIsLoggedIn(false);
-          setIsFirestoreOffline(false); // No user, so not an offline error for user data
+          setIsFirestoreOffline(false);
         }
       } catch (authProcessingError: any) {
         console.error("AuthContext: Error processing Firebase user state in onAuthStateChanged:", authProcessingError.message, authProcessingError.stack);
@@ -282,7 +288,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
       unsubscribe();
     };
-  }, [hasMounted, toast]); // Removed isFirebaseInitialized from deps as it's checked inside
+  }, [hasMounted, toast]);
 
   const resetPhoneVerification = useCallback(() => {
       setConfirmationResult(null); setPhoneVerificationError(null); setIsVerificationSent(false); setIsVerifyingCode(false);
@@ -419,7 +425,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error("Error updating Firestore/Firebase Profile:", error);
           if (error.code === 'unavailable') {
             setIsFirestoreOffline(true);
-            toast({ title: "Problema de Conexión", description:"No se pudieron guardar los cambios (posiblemente offline).", variant: "destructive" });
+            toast({ title: "Firestore Desconectado", description:"El cliente de Firestore está desconectado. No se pudieron guardar los cambios. Usando datos básicos.", variant: "destructive" });
           } else {
             setIsFirestoreOffline(false);
             toast({ title: "Error de Actualización", description:"No se pudieron guardar todos los cambios.", variant: "destructive" });
@@ -521,3 +527,5 @@ export const useAuth = (): AuthContextType => {
   if (context === undefined) { throw new Error('useAuth must be used within an AuthProvider'); }
   return context;
 };
+
+    
