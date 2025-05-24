@@ -14,7 +14,6 @@ import { Loader2, ArrowLeft, MapPin, DollarSign, ListChecks, CalendarDays, Clock
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-// Removed HOURLY_RATE_CATEGORIES import as all facilities are treated as hourly
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
@@ -89,7 +88,7 @@ const FacilityDetailPageContent = () => {
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const currentYear = getYear(today);
-  const defaultCalendarMonth = useMemo(() => new Date(2025, 5), []); // June 2025
+  const defaultCalendarMonth = useMemo(() => startOfDay(new Date()), []); 
 
   const [dailyAvailability, setDailyAvailability] = useState<Record<string, AvailabilityStatus>>({});
 
@@ -118,7 +117,6 @@ const FacilityDetailPageContent = () => {
     const dateOnly = startOfDay(date);
     if (isBefore(dateOnly, today) && !isSameDay(dateOnly, today)) return true; 
     if (isHoliday(dateOnly)) return true; 
-    // Removed direct Sunday disable: if (getDay(dateOnly) === 0) return true; 
 
     if (facility) {
         const dayOfWeek = getDay(dateOnly); 
@@ -181,12 +179,9 @@ const FacilityDetailPageContent = () => {
     while (isBefore(currentDateIterator, endDateToIterate) || isEqual(currentDateIterator, endDateToIterate)) {
         const dateStr = format(currentDateIterator, 'yyyy-MM-dd');
         if (isDayDisabled(currentDateIterator)) {
-            // No need to add to dailyAvailability
+            // No need to add to dailyAvailability for disabled days
         } else {
             const dayOfWeek = getDay(currentDateIterator);
-            const dayOfMonth = getDate(currentDateIterator);
-            const monthIndex = getMonth(currentDateIterator);
-
             let facilitySlotsForDayOfWeek = facility.availability[dayOfWeek] || [];
             let actualSlotsLeftForDay = [...facilitySlotsForDayOfWeek];
 
@@ -198,34 +193,7 @@ const FacilityDetailPageContent = () => {
                 });
             }
             
-            let status: AvailabilityStatus = 'available';
-
-            if (actualSlotsLeftForDay.length === 0) {
-                status = 'occupied'; 
-            } else {
-                if (getYear(currentDateIterator) === 2025 && monthIndex === 5) { 
-                    if (dayOfWeek === 6 ) { 
-                        status = 'partial'; 
-                    } else if (dayOfMonth === 10 || dayOfMonth === 20) {
-                        status = 'occupied'; 
-                    } else {
-                         status = 'available'; 
-                    }
-                } 
-                else if (getYear(currentDateIterator) === 2025 && monthIndex === 4) { 
-                     if (dayOfMonth === 28) { 
-                        status = 'partial';
-                    } else if (dayOfMonth === 30) { 
-                        status = 'occupied';
-                    } else {
-                         status = 'available'; 
-                    }
-                }
-                else {
-                     status = 'available'; 
-                }
-            }
-            newDailyAvailability[dateStr] = status;
+            newDailyAvailability[dateStr] = actualSlotsLeftForDay.length > 0 ? 'available' : 'occupied';
         }
         currentDateIterator = addDays(currentDateIterator, 1);
     }
@@ -335,7 +303,7 @@ const FacilityDetailPageContent = () => {
       professionalPhone: facility.phone || facility.whatsapp || 'N/A',
       serviceDate: format(selectedDate, "yyyy-MM-dd"),
       serviceTime: selectedTimeSlot,
-      serviceEndDate: format(selectedDate, "yyyy-MM-dd"), // Assuming same day for facility booking
+      serviceEndDate: format(selectedDate, "yyyy-MM-dd"), 
       serviceEndTime: format(endTime, "HH:mm"),
       orderNumber: orderId,
       status: 'aceptado' as 'aceptado',
@@ -400,14 +368,13 @@ const FacilityDetailPageContent = () => {
 
   const modifiers = useMemo(() => ({
     available: (date: Date) => !isDayDisabled(date) && dailyAvailability[format(date, 'yyyy-MM-dd')] === 'available',
-    partial: (date: Date) => !isDayDisabled(date) && dailyAvailability[format(date, 'yyyy-MM-dd')] === 'partial',
     occupied: (date: Date) => !isDayDisabled(date) && dailyAvailability[format(date, 'yyyy-MM-dd')] === 'occupied',
   }), [dailyAvailability, isDayDisabled]);
 
   const modifiersClassNames = {
     available: 'rdp-day_available',
-    partial: 'rdp-day_partial',
     occupied: 'rdp-day_occupied',
+    // Removed 'partial' as it's not being set in dailyAvailability
   };
 
   if (isLoading && bookingStep === 'selection') {
@@ -593,7 +560,7 @@ const FacilityDetailPageContent = () => {
                             modifiers={modifiers}
                             modifiersClassNames={modifiersClassNames}
                             locale={es}
-                            defaultMonth={defaultCalendarMonth}
+                            defaultMonth={selectedDate || defaultCalendarMonth}
                             fromMonth={startOfDay(new Date())}
                             toYear={currentYear + 2}
                             captionLayout="dropdown-buttons"
