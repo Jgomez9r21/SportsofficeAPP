@@ -1,6 +1,47 @@
 
 "use client";
-
+/**
+ * Nombre del método: onSubmit
+ * version 1.0
+ * Propósito:
+ * Manejar la lógica de inicio de sesión cuando el usuario envía el formulario.
+ * Valida las credenciales, autentica al usuario mediante el contexto de autenticación,
+ * y redirige a la página principal si el inicio es exitoso. Muestra notificaciones
+ * según el resultado de la operación.
+ * 
+ * Autores:
+ * - Kevin Lopez
+ * - Vanesa Caminos
+ * - Juan Pablo Gomez
+ * 
+ * Variables utilizadas:
+ * - data: objeto con email y contraseña ingresados por el usuario (LoginValues)
+ * - login: función del contexto de autenticación para iniciar sesión
+ * - toast: función para mostrar mensajes de éxito/error
+ * - router: para la navegación después del inicio exitoso
+ * 
+ * Precondición:
+ * - El formulario debe haber sido correctamente llenado y validado usando Zod/React Hook Form.
+ * - La función 'login' del AuthContext debe estar definida y funcional.
+ * 
+ * Postcondición:
+ * - Si las credenciales son válidas y el inicio es exitoso:
+ *   - Se muestra un mensaje de éxito.
+ *   - Se redirige al usuario a la página principal ('/').
+ * - Si ocurre un error durante el inicio:
+ *   - Se muestra un mensaje de error mediante 'toast'.
+ *   - No se realiza ninguna redirección.
+ */
+const onSubmit = async (data: LoginValues) => {
+  try {
+    await login(data);
+    toast({ title: "Ingreso exitoso", description: "Redirigiendo..." });
+    router.push('/'); 
+  } catch (error) {
+    // Error is already handled and toasted within AuthContext's login
+    console.error("Login page submission error:", error);
+  }
+};
 import type React from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
