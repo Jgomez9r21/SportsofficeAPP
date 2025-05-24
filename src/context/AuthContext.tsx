@@ -18,9 +18,9 @@ import {
   type User as FirebaseUser,
   onAuthStateChanged
 } from 'firebase/auth';
-import { auth as firebaseAuthInstance, db, app as firebaseApp, isFirebaseInitialized } from '@/lib/firebase';
+import { auth as firebaseAuthInstance, db as dbInstance, app as firebaseApp, isFirebaseInitialized } from '@/lib/firebase'; // Use dbInstance
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, Timestamp } from "firebase/firestore";
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, WifiOff } from 'lucide-react';
 
 interface User {
   id: string;
@@ -116,7 +116,6 @@ interface AuthContextType {
   setIsVerificationSent: (sent: boolean) => void;
   resetPhoneVerification: () => void;
   handleForgotPasswordSubmit: (data: ForgotPasswordValues, resetForm: UseFormReset<ForgotPasswordValues>) => Promise<void>;
-  openLoginDialog: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -160,20 +159,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
       return;
     }
-    setFirebaseConfigError(false); // Clear any previous config error
+    setFirebaseConfigError(false);
 
     if (!firebaseAuthInstance) {
-      console.error("AuthContext: firebaseAuthInstance is NOT available from lib/firebase, even though isFirebaseInitialized was true. This is unexpected.");
-      setFirebaseConfigError(true); // Set config error if Auth instance is missing
+      console.error("AuthContext: firebaseAuthInstance is NOT available from lib/firebase, even though isFirebaseInitialized was true. This is unexpected. Aborting auth check.");
+      setFirebaseConfigError(true);
       setIsLoading(false);
       return;
     }
     
     console.log("AuthContext: Firebase is initialized and Auth instance exists. Setting up onAuthStateChanged listener.");
     setIsLoading(true);
-    // Reset Firestore offline status at the beginning of an auth check
-    // It will be set to true again if a Firestore operation fails with 'unavailable'
-    setIsFirestoreOffline(false); 
+    setIsFirestoreOffline(false); // Reset Firestore offline status at the beginning of an auth check
 
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     loadingTimeoutRef.current = setTimeout(() => {
@@ -189,11 +186,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("AuthContext: onAuthStateChanged event received. User UID:", firebaseUser?.uid || "No user");
       try {
         if (firebaseUser) {
-          let basicUser: User; // To hold user data, either from Firestore or basic
-          if (db) { // Ensure Firestore instance is available
+          let basicUser: User; 
+          console.log("AuthContext: Firebase user detected. UID:", firebaseUser.uid);
+
+          if (dbInstance) { 
             try {
-              console.log("AuthContext: Firestore service (db) is available. Fetching user document for UID:", firebaseUser.uid);
-              const userDocRef = doc(db, "users", firebaseUser.uid);
+              console.log("AuthContext: Firestore service (dbInstance) is available. Attempting to fetch user document for UID:", firebaseUser.uid);
+              const userDocRef = doc(dbInstance, "users", firebaseUser.uid);
               const userDoc = await getDoc(userDocRef);
 
               if (userDoc.exists()) {
@@ -217,7 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   createdAt: userData.createdAt || null,
                 };
                 basicUser = combinedUser;
-                setIsFirestoreOffline(false); // Firestore operation succeeded
+                setIsFirestoreOffline(false); 
                 console.log("AuthContext: User profile fetched from Firestore for UID:", firebaseUser.uid);
               } else {
                 console.warn(`AuthContext: No Firestore document found for UID: ${firebaseUser.uid}. Creating basic profile from Auth data.`);
@@ -229,7 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsFirestoreOffline(false);
               }
             } catch (firestoreError: any) {
-              console.error("AuthContext: Error fetching user document from Firestore for UID:", firebaseUser.uid, firestoreError);
+              console.error("AuthContext: Error fetching user document from Firestore for UID:", firebaseUser.uid, firestoreError, ". Check network/Firebase status and Firestore rules.");
               let firestoreErrorTitle = "Error al Cargar Perfil";
               let firestoreErrorMessage = "No se pudo cargar tu información de perfil. Usando datos básicos.";
               if (firestoreError.code === 'unavailable') {
@@ -237,19 +236,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 firestoreErrorMessage = "La aplicación no puede conectar con la base de datos (posiblemente offline). La funcionalidad estará limitada. Se usarán datos básicos de autenticación.";
                 setIsFirestoreOffline(true); 
               } else {
-                setIsFirestoreOffline(false); // Explicitly set to false for other Firestore errors
+                setIsFirestoreOffline(false); 
               }
               toast({ title: firestoreErrorTitle, description: firestoreErrorMessage, variant: "destructive" });
-              // Fallback to basic user info from Firebase Auth if Firestore fails
               const firstName = firebaseUser.displayName?.split(' ')[0] || firebaseUser.email?.split('@')[0] || "Usuario";
               const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || "";
               const initials = ((firstName[0] || "") + (lastName[0] || (firebaseUser.email?.[0] || ""))).toUpperCase() || "U";
               basicUser = { id: firebaseUser.uid, name: `${firstName} ${lastName}`.trim(), firstName, lastName, initials, avatarUrl: firebaseUser.photoURL || defaultAvatar, email: firebaseUser.email || "No disponible", isPhoneVerified: !!firebaseUser.phoneNumber, phone: firebaseUser.phoneNumber || undefined };
             }
-          } else { // Firestore instance (db) not available
-            console.error("AuthContext: Firestore service (db) is NOT available from lib/firebase. Cannot fetch user profile for UID:", firebaseUser.uid);
+          } else { 
+            console.error("AuthContext: Firestore service (dbInstance) is NOT available from lib/firebase. Cannot fetch user profile for UID:", firebaseUser.uid);
             toast({ title: "Error Crítico de Base de Datos", description: "El servicio de base de datos (Firestore) no está inicializado. Usando datos básicos.", variant: "destructive" });
-            setIsFirestoreOffline(true); // Firestore is essential, so mark as offline
+            setIsFirestoreOffline(true); 
             const firstName = firebaseUser.displayName?.split(' ')[0] || firebaseUser.email?.split('@')[0] || "Usuario";
             const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || "";
             const initials = ((firstName[0] || "") + (lastName[0] || (firebaseUser.email?.[0] || ""))).toUpperCase() || "U";
@@ -257,11 +255,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           setUser(basicUser);
           setIsLoggedIn(true);
-        } else { // No Firebase user
+        } else { 
           console.log("AuthContext: No Firebase user found by onAuthStateChanged.");
           setUser(null);
           setIsLoggedIn(false);
-          setIsFirestoreOffline(false); // No user, so no Firestore interaction to be offline from
+          setIsFirestoreOffline(false); 
         }
       } catch (authProcessingError: any) {
         console.error("AuthContext: Error processing Firebase user state in onAuthStateChanged:", authProcessingError.message, authProcessingError.stack);
@@ -285,7 +283,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
       unsubscribe();
     };
-  }, [hasMounted, toast]);
+  }, [hasMounted, toast]); // Removed dbInstance from dependencies as it's imported now
 
   const resetPhoneVerification = useCallback(() => {
       setConfirmationResult(null); setPhoneVerificationError(null); setIsVerificationSent(false); setIsVerifyingCode(false);
@@ -300,6 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
         const userCredential = await signInWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
         console.log("AuthContext Login: Successful Firebase sign-in for", userCredential.user.email);
+        // User state will be updated by onAuthStateChanged
         return userCredential.user;
     } catch (error: any) {
         console.error("Error during login:", error);
@@ -315,7 +314,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
    const signup = useCallback(async (details: SignupValues): Promise<FirebaseUser | null> => {
     setIsLoading(true); setLoginError(null); setIsFirestoreOffline(false);
-    if (!firebaseAuthInstance || !db) {
+    if (!firebaseAuthInstance || !dbInstance) {
       const serviceMissing = !firebaseAuthInstance ? "Autenticación" : "Base de datos";
       setLoginError(`${serviceMissing} no disponible.`); toast({ title: `Error de ${serviceMissing}`, description: "Servicio no disponible.", variant: "destructive" }); setIsLoading(false);
       throw new Error(`${serviceMissing} no disponible.`);
@@ -331,7 +330,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         documentType: details.documentType || "", documentNumber: details.documentNumber || "", createdAt: serverTimestamp(),
         avatarUrl: defaultAvatar
       };
-      await setDoc(doc(db, "users", firebaseUser.uid), newUserForFirestore);
+      await setDoc(doc(dbInstance, "users", firebaseUser.uid), newUserForFirestore);
+      // User state will be updated by onAuthStateChanged
       return firebaseUser;
     } catch (error: any) {
       console.error("Error during signup:", error);
@@ -352,9 +352,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
         await firebaseAuthInstance.signOut();
         toast({ title: "Sesión cerrada" });
+        // User state will be updated by onAuthStateChanged
     } catch (error) {
         console.error("Error signing out:", error); toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive"});
-        setIsLoading(false); // Explicitly set loading to false on error too
+    } finally {
+      // setIsLoading(false) will be handled by onAuthStateChanged
     }
   }, [toast]);
 
@@ -362,8 +364,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateUser = useCallback(async (data: UpdateProfileData) => {
       setIsLoading(true); 
-      // Don't reset isFirestoreOffline here, let Firestore operations determine its state
-      if (!user || !firebaseAuthInstance?.currentUser || !db) {
+      if (!user || !firebaseAuthInstance?.currentUser || !dbInstance) {
             const missingService = !firebaseAuthInstance?.currentUser ? "Usuario no autenticado" : "Base de datos no disponible";
             toast({ title: "Error", description: `No se pudo actualizar el perfil. ${missingService}.`, variant: "destructive", }); setIsLoading(false); return;
       }
@@ -395,18 +396,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
           if (Object.keys(firestoreUpdatePayload).length > 0) {
-            await updateDoc(doc(db, "users", firebaseAuthInstance.currentUser.uid), firestoreUpdatePayload);
+            await updateDoc(doc(dbInstance, "users", firebaseAuthInstance.currentUser.uid), firestoreUpdatePayload);
           }
           if ((data.firstName || data.lastName) || (newAvatarUrl !== user.avatarUrl && data.avatarFile) ) {
               await updateFirebaseProfile(firebaseAuthInstance.currentUser, {
                   displayName: `${updatedFirstName} ${updatedLastName}`.trim(),
-                  ...(data.avatarFile && { photoURL: newAvatarUrl }),
+                  ...(data.avatarFile && { photoURL: newAvatarUrl }), // This is a placeholder, real URL needed after upload
               });
           }
           const newDob = data.dob === undefined ? user.dob : (data.dob ? (data.dob instanceof Date ? data.dob : Timestamp.fromDate(data.dob).toDate()) : null);
           setUser(prev => prev ? { ...prev, ...firestoreUpdatePayload, dob: newDob } as User : null);
           toast({ title: "Perfil Actualizado", description: "Tus datos han sido guardados." });
-          setIsFirestoreOffline(false); // Firestore operation succeeded
+          setIsFirestoreOffline(false); 
       } catch (error:any) {
           console.error("Error updating Firestore/Firebase Profile:", error);
           if (error.code === 'unavailable') {
@@ -439,7 +440,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
            else if (error.code === 'auth/network-request-failed') { errorTitle = "Error de Red"; errorMessage = "Verifica tu conexión. ReCAPTCHA también pudo fallar.";}
            else if (error.code === 'auth/internal-error') {errorTitle = "Error Interno de Auth"; errorMessage = "Error interno al verificar el teléfono. Asegúrate que la verificación telefónica esté habilitada en Firebase y que el reCAPTCHA se cargó correctamente.";}
            setPhoneVerificationError(errorMessage); toast({ title: errorTitle, description: errorMessage, variant: "destructive" });
-           recaptchaVerifier.clear();
+           recaptchaVerifier.clear(); // Clear verifier on error
        } finally {
           setIsLoading(false);
        }
@@ -454,17 +455,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
            const credential = await confirmationResult.confirm(code);
            const verifiedFirebaseUser = credential.user as FirebaseUser; 
            
-           if (user && firebaseAuthInstance?.currentUser && db) {
+           if (user && firebaseAuthInstance?.currentUser && dbInstance) {
                 await updateFirebaseProfile(firebaseAuthInstance.currentUser, { phoneNumber: verifiedFirebaseUser.phoneNumber });
-                await updateDoc(doc(db, "users", user.id), { phone: verifiedFirebaseUser.phoneNumber, isPhoneVerified: true });
+                await updateDoc(doc(dbInstance, "users", user.id), { phone: verifiedFirebaseUser.phoneNumber, isPhoneVerified: true });
                 setUser(prev => prev ? {...prev, phone: verifiedFirebaseUser.phoneNumber || prev.phone, isPhoneVerified: true} : null);
            }
            setConfirmationResult(null); setIsVerificationSent(false);
            toast({ title: "Teléfono Verificado", description: "Tu número de teléfono ha sido verificado correctamente." });
-           setIsFirestoreOffline(false); // Phone verification successful, assume Firestore might be reachable now or was a transient issue.
+           setIsFirestoreOffline(false);
        } catch (error: any) {
            console.error("Error verifying code:", error);
            let errorMessage = "El código ingresado es incorrecto o ha expirado."; let errorTitle = "Error de Verificación";
+           if (error.code === 'auth/invalid-verification-code') { errorMessage = "El código de verificación no es válido."; }
+           else if (error.code === 'auth/session-expired') { errorMessage = "La sesión de verificación ha expirado. Por favor, solicita un nuevo código.";}
            setPhoneVerificationError(errorMessage); toast({ title: errorTitle, description: errorMessage, variant: "destructive" });
        } finally {
            setIsVerifyingCode(false); setIsLoading(false);
@@ -483,21 +486,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       console.error("Error sending password reset email:", error);
       let errorMessage = "No se pudo enviar el correo de recuperación. Inténtalo de nuevo."; let errorTitle = "Error al Enviar Correo";
+      if (error.code === 'auth/user-not-found') { errorMessage = "No se encontró ninguna cuenta con ese correo electrónico."; }
       toast({ title: errorTitle, description: errorMessage, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   }, [toast]);
 
-  const openLoginDialog = () => {
-    console.log("AuthContext: openLoginDialog called. User should be navigated to /login page.");
-  };
-
   const value: AuthContextType = {
     user, isLoggedIn, isLoading, loginError, phoneVerificationError, isVerificationSent, isVerifyingCode,
     firebaseConfigError, isFirestoreOffline,
     login, signup, logout, updateUser, handleLogout, sendVerificationCode, verifyCode,
-    setIsVerificationSent, resetPhoneVerification, handleForgotPasswordSubmit, openLoginDialog,
+    setIsVerificationSent, resetPhoneVerification, handleForgotPasswordSubmit,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -508,3 +508,7 @@ export const useAuth = (): AuthContextType => {
   if (context === undefined) { throw new Error('useAuth must be used within an AuthProvider'); }
   return context;
 };
+
+// Removed openLoginDialog as it's not defined/used in the simplified page-based auth
+// If dialogs are re-introduced, this needs to be handled.
+```
