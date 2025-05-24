@@ -18,7 +18,7 @@ import {
   type User as FirebaseUser,
   onAuthStateChanged
 } from 'firebase/auth';
-import { auth as firebaseAuthInstance, db as dbInstance, app as firebaseApp, isFirebaseInitialized } from '@/lib/firebase'; // Use dbInstance
+import { auth as firebaseAuthInstance, db as dbInstance, app as firebaseApp, isFirebaseInitialized } from '@/lib/firebase'; 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, Timestamp } from "firebase/firestore";
 import { AlertTriangle, WifiOff } from 'lucide-react';
 
@@ -116,7 +116,7 @@ interface AuthContextType {
   setIsVerificationSent: (sent: boolean) => void;
   resetPhoneVerification: () => void;
   handleForgotPasswordSubmit: (data: ForgotPasswordValues, resetForm: UseFormReset<ForgotPasswordValues>) => Promise<void>;
-  openLoginDialog: () => void;
+  openLoginDialog: () => void; 
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const isLoadingRef = useRef(true); // Ref to track isLoading for timeout
+  const isLoadingRef = useRef(true); 
   const [loginError, setLoginError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -149,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log("AuthContext: Component has mounted.");
     setHasMounted(true);
-    isLoadingRef.current = true; // Initialize isLoadingRef
+    isLoadingRef.current = true;
     return () => {
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
@@ -165,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("AuthContext: Mount complete. Starting auth check process.");
 
     if (!isFirebaseInitialized) {
-      console.error("AuthContext: Firebase client SDK is NOT initialized (checked via isFirebaseInitialized from lib/firebase). Aborting auth check.");
+      console.error("AuthContext: Firebase client SDK is NOT initialized (checked via isFirebaseInitialized from lib/firebase). Auth process cannot start.");
       setFirebaseConfigError(true);
       setIsLoading(false);
       isLoadingRef.current = false;
@@ -174,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setFirebaseConfigError(false);
 
     if (!firebaseAuthInstance) {
-      console.error("AuthContext: firebaseAuthInstance is NOT available from lib/firebase, even though isFirebaseInitialized was true. This is unexpected. Aborting auth check.");
+      console.error("AuthContext: firebaseAuthInstance is NOT available from lib/firebase, even though isFirebaseInitialized was true. This is unexpected. Auth process cannot start.");
       setFirebaseConfigError(true);
       setIsLoading(false);
       isLoadingRef.current = false;
@@ -184,26 +184,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("AuthContext: Firebase is initialized and Auth instance exists. Setting up onAuthStateChanged listener.");
     setIsLoading(true);
     isLoadingRef.current = true;
-    setIsFirestoreOffline(false);
+    setIsFirestoreOffline(false); 
 
-    // Fallback timeout for isLoading state
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     loadingTimeoutRef.current = setTimeout(() => {
-      if (isLoadingRef.current) { // Check ref to see if still loading
-        console.warn("AuthContext: Auth check timed out after 15 seconds. Forcing isLoading to false. This might indicate a problem with Firebase onAuthStateChanged not firing or a very slow Firestore connection.");
-        // toast({ title: "Tiempo de Espera Excedido", description: "La verificación de sesión tardó demasiado. Intenta recargar.", variant: "destructive" });
-        setIsLoading(false); // Ensure isLoading is set to false
+      if (isLoadingRef.current) { 
+        // console.warn("AuthContext: Auth check timed out after 15 seconds. Forcing isLoading to false. This might indicate a problem with Firebase onAuthStateChanged not firing or a very slow Firestore connection.");
+        setIsLoading(false);
         isLoadingRef.current = false;
       }
       loadingTimeoutRef.current = null;
-    }, 15000); // 15-second timeout
+    }, 15000);
 
     const unsubscribe = onAuthStateChanged(firebaseAuthInstance, async (firebaseUser) => {
       console.log("AuthContext: onAuthStateChanged event received. User UID:", firebaseUser?.uid || "No user");
       try {
         if (firebaseUser) {
           console.log("AuthContext: Firebase user detected. UID:", firebaseUser.uid);
-
+          
           if (!dbInstance) {
             console.error("AuthContext: Firestore service (dbInstance) is NOT available. Cannot fetch full user profile for UID:", firebaseUser.uid);
             toast({ title: "Error de Base de Datos", description: "El servicio de base de datos (Firestore) no está inicializado. Usando datos básicos.", variant: "destructive" });
@@ -214,10 +212,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const basicUser: User = { id: firebaseUser.uid, name: `${firstName} ${lastName}`.trim(), firstName, lastName, initials, avatarUrl: firebaseUser.photoURL || defaultAvatar, email: firebaseUser.email || "No disponible", isPhoneVerified: !!firebaseUser.phoneNumber, phone: firebaseUser.phoneNumber || undefined };
             setUser(basicUser);
             setIsLoggedIn(true);
-            return; // Early return as we cannot proceed with Firestore
+            return; 
           }
           
-          setIsFirestoreOffline(false); 
+          setIsFirestoreOffline(false);
           try {
             console.log("AuthContext: Firestore service (dbInstance) is available. Attempting to fetch user document for UID:", firebaseUser.uid);
             const userDocRef = doc(dbInstance, "users", firebaseUser.uid);
@@ -244,7 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 createdAt: userData.createdAt || null,
               };
               setUser(combinedUser);
-              console.log("AuthContext: User profile fetched from Firestore for UID:", firebaseUser.uid);
+              console.log("AuthContext: User profile fetched from Firestore for UID:", firebaseUser.uid, combinedUser);
             } else {
               console.warn(`AuthContext: No Firestore document found for UID: ${firebaseUser.uid}. Creating basic profile from Auth data.`);
               toast({ title: "Perfil Incompleto", description: "No se encontró tu perfil completo en la base de datos. Usando información básica.", variant: "default" });
@@ -253,6 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const initials = ((firstName[0] || "") + (lastName[0] || (firebaseUser.email?.[0] || ""))).toUpperCase() || "U";
               const basicUser: User = { id: firebaseUser.uid, name: `${firstName} ${lastName}`.trim(), firstName, lastName, initials, avatarUrl: firebaseUser.photoURL || defaultAvatar, email: firebaseUser.email || "No disponible", isPhoneVerified: !!firebaseUser.phoneNumber, phone: firebaseUser.phoneNumber || undefined };
               setUser(basicUser);
+              console.log("AuthContext: Basic user profile set for UID:", firebaseUser.uid, basicUser);
             }
             setIsLoggedIn(true);
           } catch (firestoreError: any) {
@@ -261,29 +260,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             let firestoreErrorMessage = "No se pudo cargar tu información de perfil. Usando datos básicos.";
             if (firestoreError.code === 'unavailable') {
               firestoreErrorTitle = "Problema de Conexión a Base de Datos";
-              firestoreErrorMessage = "La aplicación no puede conectar con la base de datos (posiblemente offline). La funcionalidad estará limitada. Se usarán datos básicos de autenticación.";
+              firestoreErrorMessage = "La aplicación no puede conectar con la base de datos (posiblemente offline). La funcionalidad estará limitada.";
               setIsFirestoreOffline(true);
             }
             toast({ title: firestoreErrorTitle, description: firestoreErrorMessage, variant: "destructive" });
+            
             const firstName = firebaseUser.displayName?.split(' ')[0] || firebaseUser.email?.split('@')[0] || "Usuario";
             const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || "";
             const initials = ((firstName[0] || "") + (lastName[0] || (firebaseUser.email?.[0] || ""))).toUpperCase() || "U";
             const basicUser: User = { id: firebaseUser.uid, name: `${firstName} ${lastName}`.trim(), firstName, lastName, initials, avatarUrl: firebaseUser.photoURL || defaultAvatar, email: firebaseUser.email || "No disponible", isPhoneVerified: !!firebaseUser.phoneNumber, phone: firebaseUser.phoneNumber || undefined };
             setUser(basicUser);
-            setIsLoggedIn(true);
+            console.log("AuthContext: Basic user profile set due to Firestore error for UID:", firebaseUser.uid, basicUser);
+            setIsLoggedIn(true); 
           }
         } else {
           console.log("AuthContext: No Firebase user found by onAuthStateChanged.");
           setUser(null);
           setIsLoggedIn(false);
-          setIsFirestoreOffline(false);
+          setIsFirestoreOffline(false); 
         }
       } catch (authProcessingError: any) {
         console.error("AuthContext: Error processing Firebase user state in onAuthStateChanged:", authProcessingError.message, authProcessingError.stack);
         toast({ title: "Error de Autenticación", description: "Ocurrió un problema al verificar tu sesión.", variant: "destructive" });
         setUser(null);
         setIsLoggedIn(false);
-        setIsFirestoreOffline(false);
+        setIsFirestoreOffline(false); 
       } finally {
         console.log("AuthContext: onAuthStateChanged processing finished. Setting isLoading to false.");
         setIsLoading(false);
@@ -316,7 +317,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
         const userCredential = await signInWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
         console.log("AuthContext Login: Successful Firebase sign-in for", userCredential.user.email);
-        // User state will be updated by onAuthStateChanged
+        
         return userCredential.user;
     } catch (error: any) {
         console.error("Error during login:", error);
@@ -349,7 +350,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatarUrl: defaultAvatar
       };
       await setDoc(doc(dbInstance, "users", firebaseUser.uid), newUserForFirestore);
-      // User state will be updated by onAuthStateChanged
+      
       return firebaseUser;
     } catch (error: any) {
       console.error("Error during signup:", error);
@@ -370,17 +371,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
         await firebaseAuthInstance.signOut();
         toast({ title: "Sesión cerrada" });
-        // User state will be updated by onAuthStateChanged
+        
     } catch (error) {
         console.error("Error signing out:", error); toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive"});
-    } finally {
-      // setIsLoading(false) will be handled by onAuthStateChanged
-    }
+    } 
   }, [toast]);
 
   const handleLogout = useCallback(() => { logout(); }, [logout]);
 
   const updateUser = useCallback(async (data: UpdateProfileData) => {
+      console.log("AuthContext updateUser called. Data:", data);
       setIsLoading(true); isLoadingRef.current = true;
       if (!user || !firebaseAuthInstance?.currentUser || !dbInstance) {
             const missingService = !firebaseAuthInstance?.currentUser ? "Usuario no autenticado" : (!dbInstance ? "Base de datos no disponible" : "Servicio desconocido");
@@ -389,8 +389,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       let newAvatarUrl = user.avatarUrl;
       if (data.avatarFile) {
+          
           newAvatarUrl = URL.createObjectURL(data.avatarFile); 
-          console.warn("AuthContext updateUser: Avatar upload to Firebase Storage not yet implemented. Using local preview URL.");
+          console.warn("AuthContext updateUser: Avatar upload to Firebase Storage not yet implemented. Using local preview URL for display.");
       }
 
       const updatedFirstName = data.firstName !== undefined ? data.firstName : user.firstName;
@@ -412,27 +413,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         firestoreUpdatePayload.isPhoneVerified = false;
       }
 
+      console.log("AuthContext updateUser: Firestore update payload:", firestoreUpdatePayload);
       try {
           if (Object.keys(firestoreUpdatePayload).length > 0) {
-            await updateDoc(doc(dbInstance, "users", firebaseAuthInstance.currentUser.uid), firestoreUpdatePayload as any); // Cast to any to bypass strict type check on partial update
+            await updateDoc(doc(dbInstance, "users", firebaseAuthInstance.currentUser.uid), firestoreUpdatePayload as any); 
+            console.log("AuthContext updateUser: Firestore doc updated.");
           }
+          
           if ((data.firstName || data.lastName) || (newAvatarUrl !== user.avatarUrl && data.avatarFile) ) {
               await updateFirebaseProfile(firebaseAuthInstance.currentUser, {
                   displayName: `${updatedFirstName} ${updatedLastName}`.trim(),
                   ...(data.avatarFile && { photoURL: newAvatarUrl }), 
               });
+              console.log("AuthContext updateUser: Firebase Auth profile updated.");
           }
+          
           const newDob = data.dob === undefined ? user.dob : (data.dob ? (data.dob instanceof Date ? data.dob : Timestamp.fromDate(data.dob).toDate()) : null);
           
-          // Update local user state correctly, handling partial updates
-          setUser(prev => prev ? { 
+          setUser(prev => {
+            const updatedUser = prev ? { 
               ...prev, 
-              ...firestoreUpdatePayload, // Apply all changes from payload
-              dob: newDob, // Specifically update dob
-              name: firestoreUpdatePayload.name || prev.name, // Ensure name is updated
-              initials: firestoreUpdatePayload.initials || prev.initials, // Ensure initials are updated
-              avatarUrl: firestoreUpdatePayload.avatarUrl || prev.avatarUrl // Ensure avatar is updated
-            } as User : null);
+              ...firestoreUpdatePayload, 
+              dob: newDob, 
+              name: firestoreUpdatePayload.name || prev.name, 
+              initials: firestoreUpdatePayload.initials || prev.initials, 
+              avatarUrl: firestoreUpdatePayload.avatarUrl || prev.avatarUrl 
+            } as User : null;
+            console.log("AuthContext updateUser: Local user state updated to:", updatedUser);
+            return updatedUser;
+          });
 
           toast({ title: "Perfil Actualizado", description: "Tus datos han sido guardados." });
           setIsFirestoreOffline(false); 
@@ -536,3 +545,4 @@ export const useAuth = (): AuthContextType => {
   if (context === undefined) { throw new Error('useAuth must be used within an AuthProvider'); }
   return context;
 };
+

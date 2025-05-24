@@ -39,7 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, UpdateProfileData } from '@/context/AuthContext';
+import { useAuth, type UpdateProfileData } from '@/context/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { RecaptchaVerifier, getAuth } from 'firebase/auth';
 import { app as firebaseApp } from '@/lib/firebase'; // Import firebaseApp
@@ -136,11 +136,11 @@ function ProfileForm() {
 
    useEffect(() => {
        let verifier: RecaptchaVerifier | null = null;
-       if (!firebaseApp) { // Check if firebaseApp is initialized
+       if (!firebaseApp) { 
            console.warn("Firebase App (firebaseApp) is not initialized. Cannot set up reCAPTCHA for settings page.");
            return;
        }
-       const authInstance = getAuth(firebaseApp); // firebaseApp is now checked
+       const authInstance = getAuth(firebaseApp); 
 
        if (recaptchaContainerRef.current && !recaptchaVerifierRef.current && !authLoading && authInstance) {
            try {
@@ -151,7 +151,7 @@ function ProfileForm() {
                  },
                  'expired-callback': () => {
                      console.log("reCAPTCHA expired, attempting to re-render.");
-                     toast({ title: "reCAPTCHA Expirado", description: "Por favor, intenta verificar de nuevo.", variant: "destructive" });
+                     toast({ title: "Funciones recaptcha", description: "" });
                      resetPhoneVerification();
                      recaptchaVerifierRef.current?.render().catch(err => {
                         console.error("reCAPTCHA re-render error after expiry:", err);
@@ -164,12 +164,12 @@ function ProfileForm() {
                  recaptchaVerifierRef.current = verifier;
              }).catch(err => {
                  console.error("reCAPTCHA render error:", err);
-                 toast({ title: "Funciones recaptcha", description: "", variant: "destructive" });
+                 toast({ title: "Funciones recaptcha", description: "" });
                  recaptchaVerifierRef.current = null;
              });
            } catch (error) {
                console.error("Error creating RecaptchaVerifier:", error);
-               toast({ title: "Funciones recaptcha", description: "", variant: "destructive" });
+               toast({ title: "Funciones recaptcha", description: "" });
                recaptchaVerifierRef.current = null;
            }
        }
@@ -211,7 +211,6 @@ function ProfileForm() {
 
   const handleSendVerification = useCallback(async () => {
      if (!canSendVerification || !currentPhoneNumber) {
-        // Other checks for recaptchaVerifierRef.current and phone validity remain
         if (!firebaseApp) {
             console.warn("Firebase App not available for reCAPTCHA re-render attempt.");
             toast({ title: "Error de Firebase", description: "La aplicación Firebase no está lista.", variant: "destructive" });
@@ -261,6 +260,7 @@ function ProfileForm() {
 
 
   async function onSubmit(data: ProfileFormValues) {
+    console.log("ProfileForm onSubmit triggered. Data:", data); 
     if (!user) {
       toast({
         title: "Error de Autenticación",
@@ -273,7 +273,7 @@ function ProfileForm() {
         toast({ title: "Error de Firebase", description: "La aplicación Firebase no está inicializada.", variant: "destructive" });
         return;
      }
-     const authInstance = getAuth(firebaseApp); // firebaseApp is checked
+     const authInstance = getAuth(firebaseApp); 
      const latestFirebaseUser = authInstance.currentUser;
 
      let isNewPhoneVerifiedByFirebase = false;
@@ -298,18 +298,19 @@ function ProfileForm() {
         dob: data.dob,
         avatarFile: data.avatarFile,
     };
+    console.log("ProfileForm calling updateUser with payload:", updatePayload);
 
      try {
        await updateUser(updatePayload);
        form.reset({
          ...form.getValues(),
          phone: data.phone || '',
-         avatarFile: null,
+         avatarFile: null, 
        });
         if (fileInputRef.current) {
-           fileInputRef.current.value = '';
+           fileInputRef.current.value = ''; 
         }
-       setOriginalPhoneNumber(data.phone || '');
+       setOriginalPhoneNumber(data.phone || ''); 
      } catch (error) {
        console.error("Failed to update profile:", error);
        toast({
